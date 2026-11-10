@@ -1,13 +1,15 @@
 import { PLAYER_DATA } from "./data/player";
 import {
+  addComponent,
   createEcsWorld,
   createEntity,
   type EcsWorld,
   type Entity,
   entitiesById,
   query,
+  removeComponent,
 } from "./ecs/world";
-import type { InputFrame } from "./input-frame";
+import { aimToDir, type InputFrame } from "./input-frame";
 import type { BodyId, PhysicsWorld } from "./physics/physics-world";
 import { createRng, type Rng } from "./rng/rng";
 import { PLAYER_START, ROOM_WALLS } from "./room";
@@ -21,6 +23,10 @@ export interface PlayerSnapshot {
   y: number;
   vx: number;
   vy: number;
+  /** Ticks until the next dash is allowed (0 = ready). */
+  dashCooldown: number;
+  dashing: boolean;
+  invulnerable: boolean;
 }
 
 export interface SimState {
@@ -35,7 +41,15 @@ export interface SimState {
 
 function snapshotOf(e: Entity): PlayerSnapshot {
   const { position: p, velocity: v } = e;
-  return { x: p?.x ?? 0, y: p?.y ?? 0, vx: v?.x ?? 0, vy: v?.y ?? 0 };
+  return {
+    x: p?.x ?? 0,
+    y: p?.y ?? 0,
+    vx: v?.x ?? 0,
+    vy: v?.y ?? 0,
+    dashCooldown: e.dashCooldown ?? 0,
+    dashing: e.dash !== undefined,
+    invulnerable: e.invulnerable === true,
+  };
 }
 
 function playerEntity(ecs: EcsWorld): Entity {
@@ -58,7 +72,13 @@ export function createSimState(world: PhysicsWorld, seed: number): SimState {
   for (const w of ROOM_WALLS) world.createStaticBox(w.x, w.y, w.hw, w.hh);
   const playerId = world.createDynamicCircle(PLAYER_START.x, PLAYER_START.y, PLAYER_DATA.radius);
   const ecs = createEcsWorld();
-  createEntity(ecs, { player: true, body: playerId, move: { x: 0, y: 0 } });
+  createEntity(ecs, {
+    player: true,
+    body: playerId,
+    move: { x: 0, y: 0 },
+    buttons: { aim: 0, attack: false, dash: false },
+    dashCooldown: 0,
+  });
   syncSystem(ecs, world);
   return {
     tick: 0,
@@ -74,7 +94,39 @@ export function createSimState(world: PhysicsWorld, seed: number): SimState {
 function inputSystem(ecs: EcsWorld, input: InputFrame): void {
   const axisX = (input.right ? 1 : 0) - (input.left ? 1 : 0);
   const axisY = (input.down ? 1 : 0) - (input.up ? 1 : 0);
-  for (const e of query(ecs, "player", "move")) e.move = { x: axisX, y: axisY };
+  for (const e of query(ecs, "player", "move")) {
+    e.move = { x: axisX, y: axisY };
+    e.buttons = { aim: input.aim, attack: input.attack, dash: input.dash };
+  }
+}
+
+/**
+ * Starts dashes and drives active ones. A dash overrides velocity every tick, so walls still
+ * block it through the physics step. Direction is movement input, else aim. i-frames cover the
+ * first `iframeTicks` ticks; the cooldown runs from the dash start.
+ */
+function dashSystem(ecs: EcsWorld, world: PhysicsWorld): void {
+  const { distance, ticks, iframeTicks, cooldownTicks } = PLAYER_DATA.dash;
+  const speed = distance / ticks / TICK_DT;
+  for (const e of query(ecs, "player", "body", "move", "buttons")) {
+    if (e.dashCooldown !== undefined && e.dashCooldown > 0) e.dashCooldown--;
+    if (!e.dash && e.buttons.dash && (e.dashCooldown ?? 0) === 0) {
+      const len = Math.hypot(e.move.x, e.move.y);
+      const dir = len > 0 ? { x: e.move.x / len, y: e.move.y / len } : aimToDir(e.buttons.aim);
+      addComponent(ecs, e, "dash", { dx: dir.x, dy: dir.y, elapsed: 0 });
+      e.dashCooldown = cooldownTicks;
+    }
+    const d = e.dash;
+    if (!d) continue;
+    world.setVelocity(e.body, d.dx * speed, d.dy * speed);
+    if (d.elapsed < iframeTicks) {
+      if (!e.invulnerable) addComponent(ecs, e, "invulnerable", true);
+    } else if (e.invulnerable) {
+      removeComponent(ecs, e, "invulnerable");
+    }
+    d.elapsed++;
+    if (d.elapsed >= ticks) removeComponent(ecs, e, "dash");
+  }
 }
 
 function movementSystem(ecs: EcsWorld, world: PhysicsWorld): void {
@@ -101,6 +153,7 @@ export function step(state: SimState, input: InputFrame): SimState {
   const { world, ecs } = state;
   inputSystem(ecs, input);
   movementSystem(ecs, world);
+  dashSystem(ecs, world); // runs after movement: an active dash overrides the walking velocity
   world.step(TICK_DT);
   world.drainCollisionEvents(); // nothing consumes events yet; keep the queue empty
   syncSystem(ecs, world);

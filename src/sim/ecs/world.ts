@@ -10,6 +10,14 @@ export interface Entity {
   velocity?: { x: number; y: number };
   /** Movement intent for this tick, set by the input system. */
   move?: { x: number; y: number };
+  /** This tick's aim (0-255), attack and dash buttons, set by the input system. */
+  buttons?: { aim: number; attack: boolean; dash: boolean };
+  /** Active dash: unit direction and how many dash ticks have run so far. */
+  dash?: { dx: number; dy: number; elapsed: number };
+  /** Ticks until the next dash is allowed. */
+  dashCooldown?: number;
+  /** Invulnerability frames flag; consumed later by damage. */
+  invulnerable?: true;
 }
 
 type ComponentKey = keyof Omit<Entity, "id">;

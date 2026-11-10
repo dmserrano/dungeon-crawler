@@ -22,21 +22,37 @@ const LOG: InputFrame[] = [
   ...hold(30, {}),
 ];
 const SEED = 1234;
-const SKELETON_HASH = "dc9da512";
+const SKELETON_HASH = "acadead2";
 
 describe("input encoding", () => {
-  it("round-trips losslessly", () => {
+  it("round-trips losslessly, including aim and buttons", () => {
     const mixed: InputFrame[] = [
-      ...hold(3, { up: true, left: true }),
+      ...hold(3, { up: true, left: true, aim: 17 }),
       ...hold(1, {}),
-      ...hold(5, { right: true }),
-      ...hold(2, { up: true, down: true, left: true, right: true }),
+      ...hold(5, { right: true, attack: true, aim: 255 }),
+      ...hold(2, { up: true, down: true, left: true, right: true, attack: true, dash: true }),
+      ...hold(4, { dash: true, aim: 128 }),
     ];
     expect(decodeInputs(encodeInputs(mixed))).toEqual(mixed);
   });
 
   it("run-length encodes repeated frames", () => {
-    expect(encodeInputs(LOG)).toHaveLength(3);
+    expect(encodeInputs(LOG)).toEqual([
+      [8, 0, 120],
+      [2, 0, 120],
+      [0, 0, 30],
+    ]);
+  });
+
+  it("starts a new run when only aim changes", () => {
+    expect(encodeInputs([...hold(2, { aim: 1 }), ...hold(1, { aim: 2 })])).toEqual([
+      [0, 1, 2],
+      [0, 2, 1],
+    ]);
+  });
+
+  it("encodes attack=16 and dash=32", () => {
+    expect(encodeInputs(hold(1, { attack: true, dash: true }))).toEqual([[48, 0, 1]]);
   });
 
   it("handles an empty log", () => {
@@ -46,11 +62,11 @@ describe("input encoding", () => {
 
 describe("parseReplay", () => {
   const valid: Replay = {
-    version: 1,
+    version: 2,
     simVersion: SIM_VERSION,
     seed: 7,
     ticks: 4,
-    inputs: [[0, 4]],
+    inputs: [[0, 0, 4]],
     finalHash: "00000000",
   };
 
@@ -58,13 +74,21 @@ describe("parseReplay", () => {
     expect(parseReplay(JSON.parse(JSON.stringify(valid)))).toEqual(valid);
   });
 
+  it("rejects version 1 files saying the format changed", () => {
+    const v1 = { ...valid, version: 1, simVersion: 1, inputs: [[0, 4]] };
+    expect(() => parseReplay(v1)).toThrow(/format changed/);
+  });
+
   it.each([
     ["non-object", 42],
-    ["wrong version", { ...valid, version: 2 }],
+    ["unknown version", { ...valid, version: 3 }],
+    ["old pair-shaped run", { ...valid, inputs: [[0, 4]] }],
+    ["aim out of range", { ...valid, inputs: [[0, 256, 4]] }],
+    ["negative aim", { ...valid, inputs: [[0, -1, 4]] }],
     ["wrong simVersion", { ...valid, simVersion: SIM_VERSION + 1 }],
     ["bad seed", { ...valid, seed: "x" }],
     ["inputs not an array", { ...valid, inputs: "no" }],
-    ["bad run", { ...valid, inputs: [[99, 1]] }],
+    ["bad run", { ...valid, inputs: [[99, 0, 1]] }],
     ["tick mismatch", { ...valid, ticks: 5 }],
     ["missing hash", { ...valid, finalHash: undefined }],
   ])("rejects %s", (_name, bad) => {
@@ -79,7 +103,7 @@ describe("runReplay and recorder", () => {
 
   it("re-runs the walking-skeleton log to the recorded hash", () => {
     const replay: Replay = {
-      version: 1,
+      version: 2,
       simVersion: SIM_VERSION,
       seed: SEED,
       ticks: LOG.length,
@@ -92,7 +116,7 @@ describe("runReplay and recorder", () => {
 
   it("throws when the final hash does not match", () => {
     const replay: Replay = {
-      version: 1,
+      version: 2,
       simVersion: SIM_VERSION,
       seed: SEED,
       ticks: LOG.length,

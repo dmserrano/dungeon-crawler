@@ -32,6 +32,9 @@ function inputs(count: number): InputFrame[] {
     down: rng.next() < 0.5,
     left: rng.next() < 0.5,
     right: rng.next() < 0.5,
+    aim: 0,
+    attack: false,
+    dash: false,
   }));
 }
 

@@ -7,14 +7,17 @@ import { createSimState, hashSimState, type SimState, step } from "./step";
  * physics settings, new systems, room layout). Old replays are then rejected instead of
  * silently diverging.
  */
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2;
 
-/** Run-length encoded input: `[mask, count]` where mask bits are up=1 down=2 left=4 right=8. */
-export type InputRun = readonly [mask: number, count: number];
+/**
+ * Run-length encoded input: `[mask, aim, count]`. Mask bits: up=1 down=2 left=4 right=8
+ * attack=16 dash=32. `aim` is 0-255. A new run starts whenever mask or aim changes.
+ */
+export type InputRun = readonly [mask: number, aim: number, count: number];
 
 export interface Replay {
   /** Replay file format version. */
-  readonly version: 1;
+  readonly version: 2;
   readonly simVersion: number;
   readonly seed: number;
   readonly ticks: number;
@@ -24,29 +27,45 @@ export interface Replay {
 
 class ReplayError extends Error {}
 
-const MAX_MASK = 0b1111;
+const MAX_MASK = 0b111111;
+const MAX_AIM = 255;
 
 function toMask(f: InputFrame): number {
-  return (f.up ? 1 : 0) | (f.down ? 2 : 0) | (f.left ? 4 : 0) | (f.right ? 8 : 0);
+  return (
+    (f.up ? 1 : 0) |
+    (f.down ? 2 : 0) |
+    (f.left ? 4 : 0) |
+    (f.right ? 8 : 0) |
+    (f.attack ? 16 : 0) |
+    (f.dash ? 32 : 0)
+  );
 }
 
-function fromMask(m: number): InputFrame {
-  return { up: (m & 1) !== 0, down: (m & 2) !== 0, left: (m & 4) !== 0, right: (m & 8) !== 0 };
+function fromMask(m: number, aim: number): InputFrame {
+  return {
+    up: (m & 1) !== 0,
+    down: (m & 2) !== 0,
+    left: (m & 4) !== 0,
+    right: (m & 8) !== 0,
+    aim,
+    attack: (m & 16) !== 0,
+    dash: (m & 32) !== 0,
+  };
 }
 
 export function encodeInputs(frames: readonly InputFrame[]): InputRun[] {
-  const runs: [number, number][] = [];
+  const runs: [number, number, number][] = [];
   for (const f of frames) {
     const m = toMask(f);
     const last = runs[runs.length - 1];
-    if (last && last[0] === m) last[1]++;
-    else runs.push([m, 1]);
+    if (last && last[0] === m && last[1] === f.aim) last[2]++;
+    else runs.push([m, f.aim, 1]);
   }
   return runs;
 }
 
 export function decodeInputs(runs: readonly InputRun[]): InputFrame[] {
-  return runs.flatMap(([m, n]) => Array.from({ length: n }, () => fromMask(m)));
+  return runs.flatMap(([m, a, n]) => Array.from({ length: n }, () => fromMask(m, a)));
 }
 
 function isUint(v: unknown): v is number {
@@ -57,7 +76,12 @@ function isUint(v: unknown): v is number {
 export function parseReplay(raw: unknown): Replay {
   if (typeof raw !== "object" || raw === null) throw new ReplayError("replay must be an object");
   const r = raw as Record<string, unknown>;
-  if (r.version !== 1) throw new ReplayError(`unsupported replay version: ${r.version}`);
+  if (r.version === 1) {
+    throw new ReplayError(
+      "replay format changed: version 1 files are no longer supported (input runs now carry aim); re-record with this build",
+    );
+  }
+  if (r.version !== 2) throw new ReplayError(`unsupported replay version: ${r.version}`);
   if (r.simVersion !== SIM_VERSION) {
     throw new ReplayError(`replay is for sim ${r.simVersion}, this build is ${SIM_VERSION}`);
   }
@@ -69,16 +93,19 @@ export function parseReplay(raw: unknown): Replay {
   let total = 0;
   const runs: InputRun[] = [];
   for (const run of inputs) {
-    if (!Array.isArray(run) || run.length !== 2) throw new ReplayError("input run must be a pair");
-    const [mask, count] = run as unknown[];
+    if (!Array.isArray(run) || run.length !== 3) {
+      throw new ReplayError("input run must be [mask, aim, count]");
+    }
+    const [mask, aim, count] = run as unknown[];
     if (!isUint(mask) || mask > MAX_MASK) throw new ReplayError("input run has an invalid mask");
+    if (!isUint(aim) || aim > MAX_AIM) throw new ReplayError("input run has an invalid aim");
     if (!isUint(count) || count === 0) throw new ReplayError("input run has an invalid count");
     total += count;
-    runs.push([mask, count]);
+    runs.push([mask, aim, count]);
   }
   if (total !== r.ticks) throw new ReplayError(`ticks (${r.ticks}) != input length (${total})`);
   return {
-    version: 1,
+    version: 2,
     simVersion: r.simVersion,
     seed: r.seed,
     ticks: r.ticks,
@@ -93,7 +120,7 @@ export function buildReplay(
   finalState: SimState,
 ): Replay {
   return {
-    version: 1,
+    version: 2,
     simVersion: SIM_VERSION,
     seed,
     ticks: frames.length,

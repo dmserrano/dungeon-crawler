@@ -7,7 +7,9 @@ import { createFpsMeter } from "./debug/stats";
 import { createFixedLoop } from "./game/loop";
 import { seedFromSearch } from "./game/seed";
 import { createKeyboardInput } from "./input/keyboard";
+import { createPointerInput } from "./input/pointer";
 import { createRenderer } from "./render/renderer";
+import type { InputFrame } from "./sim/input-frame";
 import { createRapierWorld, initPhysics } from "./sim/physics/rapier-world";
 import { SIM_VERSION } from "./sim/replay";
 import { createSimState, step } from "./sim/step";
@@ -25,8 +27,9 @@ async function main() {
   let cur = createSimState(world, seed);
   log.info("session start", { seed });
   let prev = cur;
-  const input = createKeyboardInput(window);
+  const keys = createKeyboardInput(window);
   const renderer = await createRenderer(host, world);
+  const pointer = createPointerInput(window, renderer.toRoom);
   const fps = createFpsMeter();
 
   const exportReplay = (ext: "json" | "txt") => {
@@ -75,7 +78,7 @@ async function main() {
   document.body.append(button);
 
   const loop = createFixedLoop(() => {
-    const frame = input.sample();
+    const frame: InputFrame = { ...keys.sample(), ...pointer.sample(cur.player) };
     recorder.record(frame);
     prev = cur;
     cur = step(cur, frame);

@@ -15,6 +15,9 @@ describe("player data", () => {
     ["non-positive radius", { ...playerJson, radius: 0 }],
     ["damping above 1", { ...playerJson, damping: 1.5 }],
     ["unknown key", { ...playerJson, extra: 1 }],
+    ["missing dash", { ...playerJson, dash: undefined }],
+    ["fractional dash ticks", { ...playerJson, dash: { ...playerJson.dash, ticks: 7.5 } }],
+    ["iframes longer than dash", { ...playerJson, dash: { ...playerJson.dash, iframeTicks: 9 } }],
   ])("rejects %s", (_name, raw) => {
     expect(() => parsePlayerData(raw)).toThrow(/invalid data\/player\.json/);
   });
