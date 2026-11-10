@@ -32,6 +32,12 @@ pnpm format          # biome check --write
 - Cloud agents start cold: if an issue lacks context you need, comment on it rather than guessing.
 - Commit messages: short imperative subject. No co-author trailers.
 
+## Debugging and replays
+
+- In the game: `F1` toggles the physics debug draw + stats; `F2` downloads the current session as a replay JSON (seed + run-length-encoded inputs + final hash). Format and verifier: `src/sim/replay.ts` (`parseReplay`, `runReplay`).
+- **Bump `SIM_VERSION` in `src/sim/replay.ts` whenever sim behavior changes** (movement constants, physics settings, new systems, room layout), or old replays will diverge silently.
+- `src/debug/logger.ts` is a ring-buffer logger (no globals); pass it in rather than importing a singleton.
+
 ## Layout
 
 ```
