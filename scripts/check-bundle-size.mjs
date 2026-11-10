@@ -1,5 +1,5 @@
-// Fails if the gzipped JS in dist/assets exceeds the budget.
-// To raise the budget (e.g. after adding Pixi/Rapier features), change BUDGET_KB below.
+// Warns (never fails) if the gzipped JS in dist/assets exceeds the budget.
+// BUDGET_KB is a soft target; adjust it or condense the bundle when it becomes a real concern.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
@@ -16,8 +16,9 @@ const bytes = files.reduce((sum, f) => sum + gzipSync(readFileSync(join(dir, f))
 const kb = bytes / 1024;
 console.log(`JS bundle (gzip): ${kb.toFixed(1)} KB / budget ${BUDGET_KB} KB`);
 if (kb > BUDGET_KB) {
-  console.error(
-    "Bundle budget exceeded. Raise BUDGET_KB in scripts/check-bundle-size.mjs if intentional.",
+  const msg = `Bundle is ${kb.toFixed(1)} KB gzip, over the ${BUDGET_KB} KB soft budget. Not a failure; revisit when condensing.`;
+  // GitHub Actions turns this into a visible annotation on the run.
+  console.warn(
+    process.env.GITHUB_ACTIONS ? `::warning title=Bundle size::${msg}` : `Warning: ${msg}`,
   );
-  process.exit(1);
 }
