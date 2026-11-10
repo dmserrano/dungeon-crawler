@@ -23,7 +23,7 @@ pnpm format          # biome check --write
 2. All gameplay randomness uses `src/sim/rng`. Same seed + same input log must give the same state hash (`src/sim/state/hash.ts`).
 3. Physics is accessed only through the `PhysicsWorld` adapter (not yet written); never import Rapier outside it.
 4. Content (enemies, items, rooms) is data validated by Zod. Prefer adding data over adding code. Schemas live in `data/schemas/`, JSON in `data/`, loaders in `src/sim/data/`.
-4a. Entities live in the ECS behind `src/sim/ecs/world.ts`. **miniplex is imported only there**; everything else uses its create/remove/add/query functions. Systems are plain functions over queries, run in order input, movement, physics step, sync. Entity ids come from the counter on the ECS world.
+   4a. Entities live in the ECS behind `src/sim/ecs/world.ts`. **miniplex is imported only there**; everything else uses its create/remove/add/query functions. Systems are plain functions over queries, run in order input, movement, physics step, sync. Entity ids come from the counter on the ECS world.
 5. Fixed 60 Hz sim step; render interpolates.
 6. No generative AI or network calls at runtime.
 
