@@ -9,6 +9,9 @@ Canonical guide for every agent and contributor (Claude Code, Copilot coding age
 pnpm dev             # vite dev server
 pnpm verify          # typecheck + lint + tests. Must pass before opening a PR
 pnpm test            # vitest
+pnpm test:coverage   # vitest + v8 coverage; src/sim/** must stay >= 80% lines (vite.config.ts)
+pnpm knip            # dead code / unused deps (knip.json)
+pnpm build && pnpm size  # gzip JS budget check on dist/ (BUDGET_KB in scripts/check-bundle-size.mjs)
 pnpm format          # biome check --write
 ```
 

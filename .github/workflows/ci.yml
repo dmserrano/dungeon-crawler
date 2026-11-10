@@ -19,3 +19,7 @@ jobs:
           node-version: 22
       - run: ./scripts/setup.sh
       - run: pnpm verify
+      - run: pnpm test:coverage
+      - run: pnpm knip
+      - run: pnpm build
+      - run: pnpm size
