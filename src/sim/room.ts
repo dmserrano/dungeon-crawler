@@ -1,8 +1,10 @@
+import { PLAYER_DATA } from "./data/player";
+
 /** Hard-coded rectangular room (Tiled loading comes in a later slice). World units are pixels. */
 export const ROOM_WIDTH = 320;
 export const ROOM_HEIGHT = 224;
 export const WALL_THICKNESS = 16;
-export const PLAYER_RADIUS = 6;
+export const PLAYER_RADIUS = PLAYER_DATA.radius;
 export const PLAYER_START = { x: ROOM_WIDTH / 2, y: ROOM_HEIGHT / 2 };
 
 export interface WallBox {

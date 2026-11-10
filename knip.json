@@ -3,6 +3,7 @@
   "entry": ["tests/**/*.test.ts", "scripts/*.mjs", "bench/compare.mjs"],
   "project": [
     "src/**/*.ts",
+    "data/**/*.ts",
     "tests/**/*.ts",
     "scripts/**/*.mjs",
     "bench/**/*.ts",

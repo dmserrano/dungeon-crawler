@@ -1,0 +1,6 @@
+{
+  "radius": 6,
+  "maxSpeed": 90,
+  "acceleration": 1200,
+  "damping": 0.82
+}
