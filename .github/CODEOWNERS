@@ -1,0 +1,7 @@
+/src/sim/ @dmserrano
+/src/sim/physics/ @dmserrano
+/data/schemas/ @dmserrano
+/tests/architecture.test.ts @dmserrano
+/.github/ @dmserrano
+/SPEC.md @dmserrano
+/docs/adr/ @dmserrano

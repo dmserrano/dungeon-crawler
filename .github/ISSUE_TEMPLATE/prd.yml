@@ -1,0 +1,15 @@
+name: PRD
+description: Feature spec produced from a grilling session. Split into slice issues.
+labels: [prd]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: Problem / goal }
+    validations: { required: true }
+  - type: textarea
+    id: decisions
+    attributes: { label: Decisions made (from grilling) }
+    validations: { required: true }
+  - type: textarea
+    id: slices
+    attributes: { label: Proposed slices }
