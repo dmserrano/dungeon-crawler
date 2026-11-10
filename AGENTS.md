@@ -11,6 +11,7 @@ pnpm verify          # typecheck + lint + tests. Must pass before opening a PR
 pnpm test            # vitest
 pnpm test:coverage   # vitest + v8 coverage; src/sim/** must stay >= 80% lines (vite.config.ts)
 pnpm replay <file>   # verify a replay JSON headless (tsx + real sim/Rapier); --json for machine output; exit 0 ok, 1 fail, 2 usage
+pnpm bench           # headless sim benchmark (ms/tick); --json <file> saves results. Warn-only in CI vs merge-base
 pnpm knip            # dead code / unused deps (knip.json)
 pnpm build && pnpm size  # gzip JS soft-budget warning on dist/ (BUDGET_KB in scripts/check-bundle-size.mjs; warns, never fails)
 pnpm format          # biome check --write
@@ -32,6 +33,10 @@ pnpm format          # biome check --write
 - One branch/worktree per issue, one PR per issue. Agents never merge; a human reviews and squash-merges. `main` requires green CI.
 - Cloud agents start cold: if an issue lacks context you need, comment on it rather than guessing.
 - Commit messages: short imperative subject. No co-author trailers.
+
+## Performance budget
+
+Sim budget: `step()` with 200 dynamic bodies must stay under **4 ms per tick** (a 60 Hz frame is 16.6 ms; the rest is for render and the browser). `pnpm bench` measures it. CI (`bench.yml`) compares a PR with its merge-base and warns on a regression over 25% (shared runners are noisy); it never fails. `SPEC.md` rule 8 is unchanged.
 
 ## Debugging and replays
 
