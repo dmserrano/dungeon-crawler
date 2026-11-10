@@ -1,4 +1,6 @@
+import { buildIssueUrl } from "./debug/bug-report";
 import { downloadText } from "./debug/download";
+import { installErrorCapture } from "./debug/error-capture";
 import { createLogger } from "./debug/logger";
 import { createRecorder } from "./debug/recorder";
 import { createFpsMeter } from "./debug/stats";
@@ -7,6 +9,7 @@ import { seedFromSearch } from "./game/seed";
 import { createKeyboardInput } from "./input/keyboard";
 import { createRenderer } from "./render/renderer";
 import { createRapierWorld, initPhysics } from "./sim/physics/rapier-world";
+import { SIM_VERSION } from "./sim/replay";
 import { createSimState, step } from "./sim/step";
 
 async function main() {
@@ -17,6 +20,7 @@ async function main() {
   const world = createRapierWorld();
   const seed = seedFromSearch(window.location.search);
   const log = createLogger({ capacity: 500 });
+  installErrorCapture(window, log);
   const recorder = createRecorder();
   let cur = createSimState(world, seed);
   log.info("session start", { seed });
@@ -25,20 +29,50 @@ async function main() {
   const renderer = await createRenderer(host, world);
   const fps = createFpsMeter();
 
+  const exportReplay = (ext: "json" | "txt") => {
+    const replay = recorder.build(cur);
+    downloadText(
+      `replay-seed${seed}-${replay.ticks}t-${replay.finalHash}.${ext}`,
+      JSON.stringify(replay),
+      ext === "json" ? "application/json" : "text/plain",
+    );
+    log.info("replay exported", { ticks: replay.ticks, finalHash: replay.finalHash });
+    return replay;
+  };
+
+  // GitHub may reject raw .json attachments, so bug reports download the replay as .txt.
+  const reportBug = () => {
+    const replay = exportReplay("txt");
+    const url = buildIssueUrl({
+      repo: "dmserrano/dungeon-crawler",
+      simVersion: SIM_VERSION,
+      seed,
+      tick: cur.tick,
+      hash: replay.finalHash,
+      userAgent: navigator.userAgent,
+      logLines: log.dump().split("\n"),
+    });
+    window.open(url, "_blank", "noopener");
+  };
+
   window.addEventListener("keydown", (e) => {
     if (e.code === "F1") {
       e.preventDefault();
       renderer.setDebug(!renderer.debugOn);
     } else if (e.code === "F2") {
       e.preventDefault();
-      const replay = recorder.build(cur);
-      downloadText(
-        `replay-seed${seed}-${replay.ticks}t-${replay.finalHash}.json`,
-        JSON.stringify(replay),
-      );
-      log.info("replay exported", { ticks: replay.ticks, finalHash: replay.finalHash });
+      exportReplay("json");
+    } else if (e.code === "F3") {
+      e.preventDefault();
+      reportBug();
     }
   });
+
+  const button = document.createElement("button");
+  button.textContent = "Report bug (F3)";
+  button.style.cssText = "position:fixed;right:8px;bottom:8px;opacity:.7;font:12px sans-serif";
+  button.addEventListener("click", reportBug);
+  document.body.append(button);
 
   const loop = createFixedLoop(() => {
     const frame = input.sample();
