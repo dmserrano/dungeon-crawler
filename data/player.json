@@ -3,10 +3,24 @@
   "maxSpeed": 90,
   "acceleration": 1200,
   "damping": 0.82,
+  "hp": 6,
+  "invulnTicks": 60,
   "dash": {
     "distance": 48,
     "ticks": 8,
     "iframeTicks": 6,
     "cooldownTicks": 45
+  },
+  "attack": {
+    "windupTicks": 4,
+    "activeTicks": 6,
+    "recoveryTicks": 10,
+    "damage": 1,
+    "reach": 12,
+    "hitRadius": 10,
+    "knockbackSpeed": 240,
+    "hitstopTicks": 4,
+    "staggerTicks": 12,
+    "moveScale": 0.5
   }
 }

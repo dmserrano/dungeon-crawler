@@ -14,8 +14,9 @@ const LOG: InputFrame[] = [
   ...hold(30, {}),
 ];
 
-// Re-recorded for sim v2: the player snapshot now carries dash state (movement is unchanged).
-const EXPECTED_HASH = "acadead2";
+// Re-recorded for sim v3: snapshots carry combat state and the room has a training dummy
+// (movement is unchanged).
+const EXPECTED_HASH = "9be40088";
 
 function run(seed: number, log: InputFrame[]) {
   let s = createSimState(createRapierWorld(), seed);

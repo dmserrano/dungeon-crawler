@@ -12,7 +12,7 @@ import { createRenderer } from "./render/renderer";
 import type { InputFrame } from "./sim/input-frame";
 import { createRapierWorld, initPhysics } from "./sim/physics/rapier-world";
 import { SIM_VERSION } from "./sim/replay";
-import { createSimState, step } from "./sim/step";
+import { createSimState, entityViews, step } from "./sim/step";
 
 async function main() {
   const host = document.getElementById("app");
@@ -79,17 +79,23 @@ async function main() {
 
   const loop = createFixedLoop(() => {
     const frame: InputFrame = { ...keys.sample(), ...pointer.sample(cur.player) };
+    if (cur.player.dead) return; // the sim is stopped; keep the replay consistent
     recorder.record(frame);
     prev = cur;
     cur = step(cur, frame);
+    if (cur.player.dead) log.info("player died", { tick: cur.tick });
   });
 
   const frame = (now: number) => {
     const alpha = loop.frame(now);
-    renderer.draw(prev.player, cur.player, alpha);
+    renderer.draw(prev.player, cur.player, alpha, entityViews(cur));
     const rate = fps.frame(now);
     if (renderer.debugOn) {
-      renderer.setStats(`FPS ${rate.toFixed(0)}  entities ${world.bodyCount()}  tick ${cur.tick}`);
+      const p = cur.player;
+      renderer.setStats(
+        `FPS ${rate.toFixed(0)}  entities ${world.bodyCount()}  tick ${cur.tick}\n` +
+          `HP ${p.hp}/${p.maxHp}  attack ${p.attack ?? "-"}${p.dead ? "  DEAD" : ""}`,
+      );
     }
     requestAnimationFrame(frame);
   };

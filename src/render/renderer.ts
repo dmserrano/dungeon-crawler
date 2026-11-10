@@ -1,12 +1,12 @@
 import { Application, Container, Graphics, Text } from "pixi.js";
 import type { PhysicsWorld } from "../sim/physics/physics-world";
 import { PLAYER_RADIUS, ROOM_HEIGHT, ROOM_WALLS, ROOM_WIDTH, WALL_THICKNESS } from "../sim/room";
-import type { PlayerSnapshot } from "../sim/step";
+import type { EntityView, PlayerSnapshot } from "../sim/step";
 
 const SCALE = 3;
 
 export interface Renderer {
-  draw(prev: PlayerSnapshot, cur: PlayerSnapshot, alpha: number): void;
+  draw(prev: PlayerSnapshot, cur: PlayerSnapshot, alpha: number, others: EntityView[]): void;
   setDebug(on: boolean): void;
   setStats(text: string): void;
   /** Convert client (page) coordinates to room coordinates. */
@@ -39,7 +39,9 @@ export async function createRenderer(host: HTMLElement, world: PhysicsWorld): Pr
   const player = new Graphics().circle(0, 0, PLAYER_RADIUS).fill(0xe8c547);
   const debug = new Graphics();
   debug.visible = false;
-  stage.addChild(floor, walls, player, debug);
+  const entities = new Container();
+  const sprites = new Map<number, Graphics>();
+  stage.addChild(floor, walls, entities, player, debug);
 
   const stats = new Text({
     text: "",
@@ -54,8 +56,27 @@ export async function createRenderer(host: HTMLElement, world: PhysicsWorld): Pr
     get debugOn() {
       return debugOn;
     },
-    draw(prev, cur, alpha) {
+    draw(prev, cur, alpha, others) {
       player.position.set(prev.x + (cur.x - prev.x) * alpha, prev.y + (cur.y - prev.y) * alpha);
+      player.tint = cur.frozen > 0 ? 0xff8080 : 0xffffff;
+      const live = new Set<number>();
+      for (const o of others) {
+        live.add(o.id);
+        let g = sprites.get(o.id);
+        if (!g) {
+          g = new Graphics().circle(0, 0, o.radius).fill(0xc9743a);
+          sprites.set(o.id, g);
+          entities.addChild(g);
+        }
+        g.position.set(o.x, o.y);
+        g.tint = o.flash ? 0xffffff : 0xcccccc; // hit flash is render-only
+        g.alpha = o.flash ? 1 : 0.9;
+      }
+      for (const [id, g] of sprites) {
+        if (live.has(id)) continue;
+        g.destroy();
+        sprites.delete(id);
+      }
       if (debugOn) {
         debug.clear();
         for (const s of world.debugShapes()) {

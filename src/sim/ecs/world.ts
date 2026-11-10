@@ -16,8 +16,24 @@ export interface Entity {
   dash?: { dx: number; dy: number; elapsed: number };
   /** Ticks until the next dash is allowed. */
   dashCooldown?: number;
-  /** Invulnerability frames flag; consumed later by damage. */
+  /** Dash invulnerability flag. */
   invulnerable?: true;
+  /** Integer hit points; `iframeTicks` is the invulnerability granted by each hit taken. */
+  health?: { hp: number; max: number; iframeTicks: number };
+  /** Remaining post-hit invulnerability ticks. */
+  iframes?: number;
+  /** Hitstop: ticks left frozen in place (velocity held at zero). */
+  frozen?: number;
+  /** Velocity change applied when hitstop ends (px/s, away from the attacker). */
+  knockback?: { x: number; y: number };
+  /** Ticks left ignoring movement input after knockback. */
+  stagger?: number;
+  /** A swing in progress: `t` ticks elapsed, aim locked at the start, ids already hit. */
+  attack?: { t: number; aim: number; hit: number[] };
+  /** Collision radius in px (render and debug). */
+  radius?: number;
+  /** Marks a training dummy. */
+  dummy?: true;
 }
 
 type ComponentKey = keyof Omit<Entity, "id">;

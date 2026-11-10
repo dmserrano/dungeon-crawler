@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "simVersion": 2,
+  "simVersion": 3,
   "seed": 1234,
   "ticks": 270,
   "inputs": [[8, 0, 120], [2, 0, 120], [0, 0, 30]],
-  "finalHash": "acadead2"
+  "finalHash": "9be40088"
 }
