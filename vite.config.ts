@@ -6,5 +6,13 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
     environment: "node",
+    coverage: {
+      provider: "v8",
+      include: ["src/sim/**"],
+      exclude: ["src/sim/**/*.test.ts"],
+      reporter: ["text-summary", "text"],
+      // Gate for src/sim only. Raise as coverage grows; never go below 80% lines.
+      thresholds: { lines: 80 },
+    },
   },
 });
