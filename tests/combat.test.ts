@@ -181,7 +181,7 @@ describe("scenario replays", () => {
       if (hit < DUMMY_DATA.hp) expect(t.dummy()?.health?.hp).toBe(DUMMY_DATA.hp - hit);
     }
     expect(t.dummy()).toBeUndefined();
-    expect(t.s.world.bodyCount()).toBe(5); // 4 walls + player
+    expect(t.s.world.bodyCount()).toBe(7); // 4 walls + player + 2 idle chasers
     expect(t.s.player.dead).toBe(false);
 
     const replay = buildReplay(SEED, t.log, t.s);
@@ -270,4 +270,4 @@ describe("combat data", () => {
   });
 });
 
-const DUMMY_KILL_HASH = "186f5be9";
+const DUMMY_KILL_HASH = "478e7351";

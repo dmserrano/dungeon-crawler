@@ -1,4 +1,5 @@
 import { World } from "miniplex";
+import type { AiMemory } from "../ai/chaser";
 import type { BodyId } from "../physics/physics-world";
 
 /** Components. Every entity has a stable numeric `id` from the world's counter. */
@@ -34,6 +35,12 @@ export interface Entity {
   radius?: number;
   /** Marks a training dummy. */
   dummy?: true;
+  /** Marks a hostile enemy. */
+  enemy?: true;
+  /** Enemy state machine memory. */
+  ai?: AiMemory;
+  /** Ticks of stagger after hitstop; the player falls back to its attack data. */
+  staggerTicks?: number;
 }
 
 type ComponentKey = keyof Omit<Entity, "id">;

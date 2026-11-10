@@ -67,7 +67,7 @@ export function releaseSystem(ecs: EcsWorld, world: PhysicsWorld): void {
     if (e.body !== undefined) {
       const m = world.getMass(e.body);
       world.applyImpulse(e.body, k.x * m, k.y * m);
-      addComponent(ecs, e, "stagger", A.staggerTicks);
+      addComponent(ecs, e, "stagger", e.staggerTicks ?? A.staggerTicks);
     }
   }
 }

@@ -1,0 +1,20 @@
+{
+  "chaser": {
+    "radius": 6,
+    "hp": 2,
+    "invulnTicks": 20,
+    "speed": 50,
+    "damping": 0.82,
+    "aggroRange": 120,
+    "attackRange": 40,
+    "telegraphTicks": 12,
+    "lunge": { "speed": 200, "ticks": 14 },
+    "cooldownTicks": 45,
+    "contactDamage": 1,
+    "knockbackSpeed": 200,
+    "hitstopTicks": 4,
+    "staggerTicks": 24,
+    "separationRadius": 24,
+    "separationWeight": 0.8
+  }
+}

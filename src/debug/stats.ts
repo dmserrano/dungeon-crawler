@@ -10,3 +10,9 @@ export function createFpsMeter() {
     },
   };
 }
+
+/** Debug overlay lines for enemies: a count, then each enemy's id and state name. */
+export function describeEnemies(views: readonly { id: number; ai: string | null }[]): string {
+  const enemies = views.filter((v) => v.ai !== null);
+  return [`enemies ${enemies.length}`, ...enemies.map((v) => `  #${v.id} ${v.ai}`)].join("\n");
+}
