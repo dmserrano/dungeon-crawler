@@ -14,9 +14,9 @@ const LOG: InputFrame[] = [
   ...hold(30, {}),
 ];
 
-// Re-recorded for sim v3: snapshots carry combat state and the room has a training dummy
-// (movement is unchanged).
-const EXPECTED_HASH = "9be40088";
+// Re-recorded for sim v4: the room also holds two chasers, which stay idle here because the
+// player never comes within their aggro range (movement is unchanged).
+const EXPECTED_HASH = "02bb899d";
 
 function run(seed: number, log: InputFrame[]) {
   let s = createSimState(createRapierWorld(), seed);

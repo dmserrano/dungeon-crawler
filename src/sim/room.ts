@@ -9,6 +9,12 @@ export const PLAYER_START = { x: ROOM_WIDTH / 2, y: ROOM_HEIGHT / 2 };
 /** Where the test room's training dummy stands (off the player's row, so dashes stay clear). */
 export const DUMMY_START = { x: 240, y: 64 };
 
+/** Chasers in the test room: left side, outside their aggro range of the player's start. */
+export const CHASER_STARTS: readonly { x: number; y: number }[] = [
+  { x: 40, y: 48 },
+  { x: 40, y: 176 },
+];
+
 export interface WallBox {
   x: number;
   y: number;

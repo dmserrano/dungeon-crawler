@@ -110,12 +110,13 @@ export async function createRenderer(host: HTMLElement, world: PhysicsWorld): Pr
         live.add(o.id);
         let g = sprites.get(o.id);
         if (!g) {
-          g = new Graphics().circle(0, 0, o.radius).fill(0xc9743a);
+          g = new Graphics().circle(0, 0, o.radius).fill(o.ai ? 0xd94a4a : 0xc9743a);
           sprites.set(o.id, g);
           entities.addChild(g);
         }
         g.position.set(o.x, o.y);
-        g.tint = o.flash ? 0xffffff : 0xcccccc; // hit flash is render-only
+        // Render-only cues: hit flash, and a yellow warning tint while a chaser telegraphs.
+        g.tint = o.flash ? 0xffffff : o.ai === "telegraph" ? 0xffee55 : 0xcccccc;
         g.alpha = o.flash ? 1 : 0.9;
       }
       for (const [id, g] of sprites) {

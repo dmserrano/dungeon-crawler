@@ -1,3 +1,5 @@
+import type { AiState } from "./ai/chaser";
+import { aiSystem, spawnChaser } from "./ai/system";
 import {
   type AttackPhase,
   attackPhaseAt,
@@ -23,7 +25,7 @@ import {
 import { aimToDir, type InputFrame } from "./input-frame";
 import type { BodyId, PhysicsWorld } from "./physics/physics-world";
 import { createRng, type Rng } from "./rng/rng";
-import { DUMMY_START, PLAYER_START, ROOM_WALLS } from "./room";
+import { CHASER_STARTS, DUMMY_START, PLAYER_START, ROOM_WALLS } from "./room";
 import { hashState } from "./state/hash";
 
 export const TICK_RATE = 60;
@@ -69,6 +71,8 @@ export interface EntityView {
   hp: number;
   /** True during hitstop (render-only flash). */
   flash: boolean;
+  /** Enemy behavior state, or null for non-enemies (the dummy). */
+  ai: AiState | null;
 }
 
 export function entityViews(state: SimState): EntityView[] {
@@ -81,6 +85,7 @@ export function entityViews(state: SimState): EntityView[] {
       radius: e.radius ?? 0,
       hp: e.health?.hp ?? 0,
       flash: isFrozen(e),
+      ai: e.ai?.state ?? null,
     }));
 }
 
@@ -138,6 +143,7 @@ export function createSimState(world: PhysicsWorld, seed: number): SimState {
     health: { hp: DUMMY_DATA.hp, max: DUMMY_DATA.hp, iframeTicks: DUMMY_DATA.invulnTicks },
     radius: DUMMY_DATA.radius,
   });
+  for (const c of CHASER_STARTS) spawnChaser(ecs, world, c.x, c.y);
   syncSystem(ecs, world);
   return {
     events: [],
@@ -232,6 +238,7 @@ export function step(state: SimState, input: InputFrame): SimState {
   releaseSystem(ecs, world);
   movementSystem(ecs, world);
   dashSystem(ecs, world); // runs after movement: an active dash overrides the walking velocity
+  aiSystem(ecs, world, events);
   meleeSystem(ecs, world, events);
   damageSystem(ecs, world, events);
   freezeSystem(ecs, world);
@@ -256,6 +263,7 @@ export function stateSnapshot(state: SimState) {
       hp: e.health?.hp ?? 0,
       iframes: e.iframes ?? 0,
       frozen: e.frozen ?? 0,
+      ...(e.ai ? { ai: { state: e.ai.state, t: e.ai.t, cooldown: e.ai.cooldown } } : {}),
     }));
   return {
     tick: state.tick,

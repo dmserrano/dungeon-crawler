@@ -133,4 +133,4 @@ describe("dash", () => {
   });
 });
 
-const EXPECTED_HASH = "7b99d257";
+const EXPECTED_HASH = "c817af34";

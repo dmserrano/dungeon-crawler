@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "simVersion": 3,
+  "simVersion": 4,
   "seed": 1234,
   "ticks": 270,
   "inputs": [[8, 0, 120], [2, 0, 120], [0, 0, 30]],
-  "finalHash": "9be40088"
+  "finalHash": "02bb899d"
 }
