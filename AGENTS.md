@@ -40,6 +40,17 @@ pnpm format          # biome check --write
 - `src/debug/logger.ts` is a ring-buffer logger (no globals); pass it in rather than importing a singleton.
 - `F3` / the "Report bug" button downloads the replay as `.txt` (GitHub may reject `.json` attachments; `pnpm replay` reads any extension) and opens a prefilled issue URL (`src/debug/bug-report.ts`, form `.github/ISSUE_TEMPLATE/bug-report.yml`). Uncaught errors and unhandled rejections are written to the logger by `src/debug/error-capture.ts`. If you change the form field ids, change the URL builder too.
 
+## Bug triage agent
+
+Flow: player files a `bug-report` issue with a replay attached -> a maintainer (write access) applies the label `triage-agent` -> `.github/workflows/bug-triage.yml` runs the Claude Code Action -> the agent downloads the replay, runs `pnpm replay --json`, and classifies it:
+
+- **reproduced** (hash mismatch or crash): commits the replay under `tests/fixtures/` plus a failing test to branch `triage/<issue-number>`, files ONE `slice` issue (links the bug, branch, failing test, acceptance criteria) and comments on the bug.
+- **not reproduced** (verifies cleanly) or **unusable** (malformed, wrong `simVersion`, missing attachment): only comments, asking for what is missing.
+
+Human step: review the filed slice, then add `agent-ready` yourself. The agent never opens or merges PRs, never applies `agent-ready`, never pushes to `main`, never touches `src/`.
+
+**Trust decision:** the workflow runs only when a maintainer applies the label, never automatically on issues opened by outsiders, and `allowed_non_write_users` must stay unset. Issue bodies, logs and replays are untrusted input to an agent holding a write token (prompt injection). Automatic triage of outside reports needs its own ADR.
+
 ## Telemetry
 
 The game makes no network calls and sends no data automatically. Bug reports only open a GitHub URL in a new tab on the user's own click/keypress; the user submits the issue themselves. Keep it that way: no remote error services, analytics or auto-submission.
