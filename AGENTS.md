@@ -10,6 +10,7 @@ pnpm dev             # vite dev server
 pnpm verify          # typecheck + lint + tests. Must pass before opening a PR
 pnpm test            # vitest
 pnpm test:coverage   # vitest + v8 coverage; src/sim/** must stay >= 80% lines (vite.config.ts)
+pnpm replay <file>   # verify a replay JSON headless (tsx + real sim/Rapier); --json for machine output; exit 0 ok, 1 fail, 2 usage
 pnpm knip            # dead code / unused deps (knip.json)
 pnpm build && pnpm size  # gzip JS soft-budget warning on dist/ (BUDGET_KB in scripts/check-bundle-size.mjs; warns, never fails)
 pnpm format          # biome check --write

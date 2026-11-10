@@ -16,6 +16,7 @@
     "format": "biome check --write .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "replay": "tsx src/cli/replay.ts",
     "knip": "knip",
     "size": "node scripts/check-bundle-size.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm test"
@@ -25,6 +26,7 @@
     "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.1.0",
     "knip": "^6.44.2",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
