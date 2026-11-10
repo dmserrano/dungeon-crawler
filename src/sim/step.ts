@@ -1,3 +1,14 @@
+import {
+  type AttackPhase,
+  attackPhaseAt,
+  damageSystem,
+  freezeSystem,
+  isFrozen,
+  meleeSystem,
+  releaseSystem,
+  type SimEvent,
+} from "./combat";
+import { DUMMY_DATA } from "./data/dummy";
 import { PLAYER_DATA } from "./data/player";
 import {
   addComponent,
@@ -12,7 +23,7 @@ import {
 import { aimToDir, type InputFrame } from "./input-frame";
 import type { BodyId, PhysicsWorld } from "./physics/physics-world";
 import { createRng, type Rng } from "./rng/rng";
-import { PLAYER_START, ROOM_WALLS } from "./room";
+import { DUMMY_START, PLAYER_START, ROOM_WALLS } from "./room";
 import { hashState } from "./state/hash";
 
 export const TICK_RATE = 60;
@@ -26,7 +37,15 @@ export interface PlayerSnapshot {
   /** Ticks until the next dash is allowed (0 = ready). */
   dashCooldown: number;
   dashing: boolean;
+  /** Dash i-frames or post-hit invulnerability. */
   invulnerable: boolean;
+  hp: number;
+  maxHp: number;
+  /** Phase of the swing in progress, or null. */
+  attack: AttackPhase | null;
+  /** Hitstop ticks left. */
+  frozen: number;
+  dead: boolean;
 }
 
 export interface SimState {
@@ -37,6 +56,32 @@ export interface SimState {
   readonly ecs: EcsWorld;
   readonly playerId: BodyId;
   readonly player: PlayerSnapshot;
+  /** Event queue: damage is consumed within the tick; death notices last until the next tick. */
+  readonly events: SimEvent[];
+}
+
+/** Render-facing view of a non-player entity. */
+export interface EntityView {
+  id: number;
+  x: number;
+  y: number;
+  radius: number;
+  hp: number;
+  /** True during hitstop (render-only flash). */
+  flash: boolean;
+}
+
+export function entityViews(state: SimState): EntityView[] {
+  return entitiesById(state.ecs)
+    .filter((e) => !e.player && e.position && e.radius !== undefined)
+    .map((e) => ({
+      id: e.id,
+      x: e.position?.x ?? 0,
+      y: e.position?.y ?? 0,
+      radius: e.radius ?? 0,
+      hp: e.health?.hp ?? 0,
+      flash: isFrozen(e),
+    }));
 }
 
 function snapshotOf(e: Entity): PlayerSnapshot {
@@ -48,7 +93,12 @@ function snapshotOf(e: Entity): PlayerSnapshot {
     vy: v?.y ?? 0,
     dashCooldown: e.dashCooldown ?? 0,
     dashing: e.dash !== undefined,
-    invulnerable: e.invulnerable === true,
+    invulnerable: e.invulnerable === true || (e.iframes ?? 0) > 0,
+    hp: e.health?.hp ?? 0,
+    maxHp: e.health?.max ?? 0,
+    attack: e.attack ? attackPhaseAt(e.attack.t) : null,
+    frozen: e.frozen ?? 0,
+    dead: e.health !== undefined && e.health.hp <= 0,
   };
 }
 
@@ -78,9 +128,19 @@ export function createSimState(world: PhysicsWorld, seed: number): SimState {
     move: { x: 0, y: 0 },
     buttons: { aim: 0, attack: false, dash: false },
     dashCooldown: 0,
+    health: { hp: PLAYER_DATA.hp, max: PLAYER_DATA.hp, iframeTicks: PLAYER_DATA.invulnTicks },
+    radius: PLAYER_DATA.radius,
+  });
+  // Training dummy: solid, never moves, takes damage and dies.
+  createEntity(ecs, {
+    dummy: true,
+    body: world.createStaticCircle(DUMMY_START.x, DUMMY_START.y, DUMMY_DATA.radius),
+    health: { hp: DUMMY_DATA.hp, max: DUMMY_DATA.hp, iframeTicks: DUMMY_DATA.invulnTicks },
+    radius: DUMMY_DATA.radius,
   });
   syncSystem(ecs, world);
   return {
+    events: [],
     tick: 0,
     seed,
     rng: createRng(seed),
@@ -109,6 +169,7 @@ function dashSystem(ecs: EcsWorld, world: PhysicsWorld): void {
   const { distance, ticks, iframeTicks, cooldownTicks } = PLAYER_DATA.dash;
   const speed = distance / ticks / TICK_DT;
   for (const e of query(ecs, "player", "body", "move", "buttons")) {
+    if (isFrozen(e)) continue;
     if (e.dashCooldown !== undefined && e.dashCooldown > 0) e.dashCooldown--;
     if (!e.dash && e.buttons.dash && (e.dashCooldown ?? 0) === 0) {
       const len = Math.hypot(e.move.x, e.move.y);
@@ -129,11 +190,24 @@ function dashSystem(ecs: EcsWorld, world: PhysicsWorld): void {
   }
 }
 
+/**
+ * Walking. Slowed while swinging. Staggered entities (just knocked back) ignore input and only
+ * lose speed to damping, so the knockback is not clipped by the walking speed cap.
+ */
 function movementSystem(ecs: EcsWorld, world: PhysicsWorld): void {
-  const { acceleration, damping, maxSpeed } = PLAYER_DATA;
+  const { damping } = PLAYER_DATA;
   for (const e of query(ecs, "player", "body", "move")) {
-    const len = Math.hypot(e.move.x, e.move.y) || 1;
+    if (isFrozen(e)) continue;
+    const scale = e.attack ? PLAYER_DATA.attack.moveScale : 1;
+    const acceleration = PLAYER_DATA.acceleration * scale;
+    const maxSpeed = PLAYER_DATA.maxSpeed * scale;
     const v = world.getVelocity(e.body);
+    if (e.stagger !== undefined) {
+      world.setVelocity(e.body, v.x * damping, v.y * damping);
+      if (--e.stagger <= 0) removeComponent(ecs, e, "stagger");
+      continue;
+    }
+    const len = Math.hypot(e.move.x, e.move.y) || 1;
     let vx = (v.x + (e.move.x / len) * acceleration * TICK_DT) * damping;
     let vy = (v.y + (e.move.y / len) * acceleration * TICK_DT) * damping;
     const speed = Math.hypot(vx, vy);
@@ -150,10 +224,17 @@ function movementSystem(ecs: EcsWorld, world: PhysicsWorld): void {
  * The physics and ECS worlds are mutated in place; the returned state holds the new snapshot.
  */
 export function step(state: SimState, input: InputFrame): SimState {
-  const { world, ecs } = state;
+  if (state.player.dead) return state; // player death stops the sim
+  const { world, ecs, events } = state;
+  // Last tick's death notices go; queued damage (e.g. from hazards or tests) stays for this tick.
+  for (let i = events.length - 1; i >= 0; i--) if (events[i]?.kind === "death") events.splice(i, 1);
   inputSystem(ecs, input);
+  releaseSystem(ecs, world);
   movementSystem(ecs, world);
   dashSystem(ecs, world); // runs after movement: an active dash overrides the walking velocity
+  meleeSystem(ecs, world, events);
+  damageSystem(ecs, world, events);
+  freezeSystem(ecs, world);
   world.step(TICK_DT);
   world.drainCollisionEvents(); // nothing consumes events yet; keep the queue empty
   syncSystem(ecs, world);
@@ -168,7 +249,14 @@ export function step(state: SimState, input: InputFrame): SimState {
 export function stateSnapshot(state: SimState) {
   const others = entitiesById(state.ecs)
     .filter((e) => !e.player)
-    .map((e) => ({ id: e.id, position: e.position, velocity: e.velocity }));
+    .map((e) => ({
+      id: e.id,
+      position: e.position,
+      velocity: e.velocity,
+      hp: e.health?.hp ?? 0,
+      iframes: e.iframes ?? 0,
+      frozen: e.frozen ?? 0,
+    }));
   return {
     tick: state.tick,
     seed: state.seed,

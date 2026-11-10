@@ -19,13 +19,17 @@ export function initPhysics(): Promise<void> {
 export function createRapierWorld(): PhysicsWorld {
   const world = new RAPIER.World({ x: 0, y: 0 });
   const events = new RAPIER.EventQueue(true);
-  const bodies: RAPIER.RigidBody[] = [];
+  const bodies: (RAPIER.RigidBody | undefined)[] = [];
+  const colliders: number[] = [];
+  let live = 0;
   const dynamic = new Set<BodyId>();
   const byCollider = new Map<number, BodyId>();
 
   const register = (body: RAPIER.RigidBody, collider: RAPIER.Collider, isDynamic: boolean) => {
     const id = bodies.length;
     bodies.push(body);
+    colliders.push(collider.handle);
+    live++;
     byCollider.set(collider.handle, id);
     if (isDynamic) dynamic.add(id);
     return id;
@@ -59,6 +63,38 @@ export function createRapierWorld(): PhysicsWorld {
         rb,
       );
       return register(rb, col, true);
+    },
+    createStaticCircle(x, y, radius) {
+      const rb = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x, y));
+      const col = world.createCollider(
+        RAPIER.ColliderDesc.ball(radius).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS),
+        rb,
+      );
+      return register(rb, col, false);
+    },
+    removeBody(id) {
+      const b = bodies[id];
+      if (!b) return;
+      world.removeRigidBody(b);
+      byCollider.delete(colliders[id] as number);
+      dynamic.delete(id);
+      bodies[id] = undefined;
+      live--;
+    },
+    applyImpulse(id, ix, iy) {
+      body(id).applyImpulse({ x: ix, y: iy }, true);
+    },
+    getMass(id) {
+      return body(id).mass();
+    },
+    intersectCircle(x, y, radius) {
+      const out: BodyId[] = [];
+      world.intersectionsWithShape({ x, y }, 0, new RAPIER.Ball(radius), (c) => {
+        const id = byCollider.get(c.handle);
+        if (id !== undefined) out.push(id);
+        return true;
+      });
+      return out.sort((a, b) => a - b);
     },
     setVelocity(id, vx, vy) {
       body(id).setLinvel({ x: vx, y: vy }, true);
@@ -123,7 +159,7 @@ export function createRapierWorld(): PhysicsWorld {
       return shapes;
     },
     bodyCount() {
-      return bodies.length;
+      return live;
     },
   };
 }

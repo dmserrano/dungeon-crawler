@@ -22,7 +22,7 @@ const LOG: InputFrame[] = [
   ...hold(30, {}),
 ];
 const SEED = 1234;
-const SKELETON_HASH = "acadead2";
+const SKELETON_HASH = "9be40088";
 
 describe("input encoding", () => {
   it("round-trips losslessly, including aim and buttons", () => {

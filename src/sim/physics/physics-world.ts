@@ -29,6 +29,13 @@ export type DebugShape =
 export interface PhysicsWorld {
   createStaticBox(x: number, y: number, halfW: number, halfH: number): BodyId;
   createDynamicCircle(x: number, y: number, radius: number): BodyId;
+  /** Immovable solid circle (e.g. a training dummy). */
+  createStaticCircle(x: number, y: number, radius: number): BodyId;
+  /** Remove a body and its collider. Its id is never reused. */
+  removeBody(id: BodyId): void;
+  /** Instant velocity change of `impulse / mass`. No effect on static bodies. */
+  applyImpulse(id: BodyId, ix: number, iy: number): void;
+  getMass(id: BodyId): number;
   setVelocity(id: BodyId, vx: number, vy: number): void;
   getVelocity(id: BodyId): Vec2;
   getPosition(id: BodyId): Vec2;
@@ -36,6 +43,8 @@ export interface PhysicsWorld {
   step(dt: number): void;
   /** `dir` must be a unit vector. */
   raycast(origin: Vec2, dir: Vec2, maxDistance: number): RaycastHit | null;
+  /** Bodies whose collider overlaps the circle (a sensor query: nothing is pushed). Sorted by id. */
+  intersectCircle(x: number, y: number, radius: number): BodyId[];
   queryAABB(minX: number, minY: number, maxX: number, maxY: number): BodyId[];
   drainCollisionEvents(): CollisionEvent[];
   /** Collider outlines for the debug draw overlay. */

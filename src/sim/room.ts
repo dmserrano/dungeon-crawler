@@ -6,6 +6,8 @@ export const ROOM_HEIGHT = 224;
 export const WALL_THICKNESS = 16;
 export const PLAYER_RADIUS = PLAYER_DATA.radius;
 export const PLAYER_START = { x: ROOM_WIDTH / 2, y: ROOM_HEIGHT / 2 };
+/** Where the test room's training dummy stands (off the player's row, so dashes stay clear). */
+export const DUMMY_START = { x: 240, y: 64 };
 
 export interface WallBox {
   x: number;
