@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: write        # push triage/<n> branch only (prompt forbids main)
-      issues: write          # comment and file the slice
-      pull-requests: read    # no PR creation
+      contents: write # push triage/<n> branch only (prompt forbids main)
+      issues: write # comment and file the slice
+      pull-requests: read # no PR creation
       id-token: write
     steps:
       - uses: actions/checkout@v7
