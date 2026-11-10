@@ -1,7 +1,13 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["tests/**/*.test.ts", "scripts/*.mjs"],
-  "project": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.mjs"],
+  "entry": ["tests/**/*.test.ts", "scripts/*.mjs", "bench/compare.mjs"],
+  "project": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "scripts/**/*.mjs",
+    "bench/**/*.ts",
+    "bench/**/*.mjs"
+  ],
   "ignoreIssues": {
     "src/input/keyboard.ts": ["exports", "types"],
     "src/sim/step.ts": ["exports"]

@@ -18,6 +18,7 @@
     "test:coverage": "vitest run --coverage",
     "replay": "tsx src/cli/replay.ts",
     "knip": "knip",
+    "bench": "tsx bench/sim-bench.ts",
     "size": "node scripts/check-bundle-size.mjs",
     "verify": "pnpm typecheck && pnpm lint && pnpm test"
   },
