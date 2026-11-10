@@ -1,0 +1,45 @@
+name: bench
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: ./scripts/setup.sh
+      - name: Bench head
+        run: pnpm bench --json "$RUNNER_TEMP/head.json"
+      - name: Bench merge-base
+        run: |
+          base=$(git merge-base origin/${{ github.base_ref }} HEAD)
+          cp -r bench "$RUNNER_TEMP/bench-new"
+          git checkout --force "$base"
+          # merge-base may predate the bench; use the new script against the old sim
+          rm -rf bench && cp -r "$RUNNER_TEMP/bench-new" bench
+          pnpm install --frozen-lockfile || true
+          pnpm exec tsx bench/sim-bench.ts --json "$RUNNER_TEMP/base.json" || echo '[]' > "$RUNNER_TEMP/base.json"
+          git checkout --force -
+      - name: Compare
+        run: |
+          node bench/compare.mjs "$RUNNER_TEMP/base.json" "$RUNNER_TEMP/head.json" 25 | tee report.md
+          grep -v '^::warning' report.md >> "$GITHUB_STEP_SUMMARY" || true
+          grep '^::warning' report.md || true
+      - name: Update PR comment
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          grep -v '^::warning' report.md > comment.md
+          id=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.number }}/comments" --jq '[.[] | select(.body | contains(""))][0].id // empty')
+          if [ -n "$id" ]; then gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$id" -F body=@comment.md
+          else gh pr comment ${{ github.event.number }} --body-file comment.md; fi
