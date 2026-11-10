@@ -2,5 +2,11 @@
   "radius": 6,
   "maxSpeed": 90,
   "acceleration": 1200,
-  "damping": 0.82
+  "damping": 0.82,
+  "dash": {
+    "distance": 48,
+    "ticks": 8,
+    "iframeTicks": 6,
+    "cooldownTicks": 45
+  }
 }

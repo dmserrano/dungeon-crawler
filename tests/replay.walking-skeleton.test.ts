@@ -14,7 +14,8 @@ const LOG: InputFrame[] = [
   ...hold(30, {}),
 ];
 
-const EXPECTED_HASH = "dc9da512";
+// Re-recorded for sim v2: the player snapshot now carries dash state (movement is unchanged).
+const EXPECTED_HASH = "acadead2";
 
 function run(seed: number, log: InputFrame[]) {
   let s = createSimState(createRapierWorld(), seed);

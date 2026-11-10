@@ -43,6 +43,7 @@ Sim budget: `step()` with 200 dynamic bodies must stay under **4 ms per tick** (
 
 - In the game: `F1` toggles the physics debug draw + stats; `F2` downloads the current session as a replay JSON (seed + run-length-encoded inputs + final hash). Format and verifier: `src/sim/replay.ts` (`parseReplay`, `runReplay`).
 - **Bump `SIM_VERSION` in `src/sim/replay.ts` whenever sim behavior changes** (movement constants, physics settings, new systems, room layout), or old replays will diverge silently.
+- Replay format v2 (`SIM_VERSION` 2): `InputFrame` is `up/down/left/right/attack/dash` plus `aim` (integer 0-255, 256 steps per turn, 0 = +x, clockwise on screen). Inputs are run-length encoded as `[mask, aim, count]` (mask bits up=1 down=2 left=4 right=8 attack=16 dash=32; a new run starts when mask or aim changes). `parseReplay` rejects v1 files with a "format changed" error; re-record them.
 - `src/debug/logger.ts` is a ring-buffer logger (no globals); pass it in rather than importing a singleton.
 - `F3` / the "Report bug" button downloads the replay as `.txt` (GitHub may reject `.json` attachments; `pnpm replay` reads any extension) and opens a prefilled issue URL (`src/debug/bug-report.ts`, form `.github/ISSUE_TEMPLATE/bug-report.yml`). Uncaught errors and unhandled rejections are written to the logger by `src/debug/error-capture.ts`. If you change the form field ids, change the URL builder too.
 

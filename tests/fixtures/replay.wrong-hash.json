@@ -1,8 +1,8 @@
 {
-  "version": 1,
-  "simVersion": 1,
+  "version": 2,
+  "simVersion": 2,
   "seed": 1234,
   "ticks": 270,
-  "inputs": [[8, 120], [2, 120], [0, 30]],
+  "inputs": [[8, 0, 120], [2, 0, 120], [0, 0, 30]],
   "finalHash": "deadbeef"
 }

@@ -9,6 +9,8 @@ export interface Renderer {
   draw(prev: PlayerSnapshot, cur: PlayerSnapshot, alpha: number): void;
   setDebug(on: boolean): void;
   setStats(text: string): void;
+  /** Convert client (page) coordinates to room coordinates. */
+  toRoom(clientX: number, clientY: number): { x: number; y: number };
   readonly debugOn: boolean;
 }
 
@@ -71,6 +73,13 @@ export async function createRenderer(host: HTMLElement, world: PhysicsWorld): Pr
     },
     setStats(text) {
       stats.text = text;
+    },
+    toRoom(clientX, clientY) {
+      const r = app.canvas.getBoundingClientRect();
+      // Canvas CSS size may differ from its pixel size; normalise, then undo scale and margin.
+      const px = ((clientX - r.left) / (r.width || 1)) * app.canvas.width;
+      const py = ((clientY - r.top) / (r.height || 1)) * app.canvas.height;
+      return { x: px / SCALE - margin, y: py / SCALE - margin };
     },
   };
 }
