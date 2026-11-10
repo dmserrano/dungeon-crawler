@@ -1,0 +1,43 @@
+name: Bug report
+description: Something went wrong in the game. Usually opened prefilled via F3 / "Report bug" in the game.
+labels: [bug-report]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please drag the downloaded replay file (`replay-*.txt`) into the comment box below.**
+        Nothing is sent automatically; you are submitting this issue yourself.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did you see instead?
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Game / sim version
+    validations: { required: true }
+  - type: input
+    id: seed
+    attributes:
+      label: Seed
+    validations: { required: true }
+  - type: input
+    id: tick
+    attributes:
+      label: Tick
+  - type: input
+    id: hash
+    attributes:
+      label: State hash
+    validations: { required: true }
+  - type: input
+    id: user-agent
+    attributes:
+      label: User agent
+  - type: textarea
+    id: logs
+    attributes:
+      label: Recent log lines
+      render: text
