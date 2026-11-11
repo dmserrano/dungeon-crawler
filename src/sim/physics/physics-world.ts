@@ -31,6 +31,13 @@ export interface PhysicsWorld {
   createDynamicCircle(x: number, y: number, radius: number): BodyId;
   /** Immovable solid circle (e.g. a training dummy). */
   createStaticCircle(x: number, y: number, radius: number): BodyId;
+  /**
+   * Moving sensor circle (e.g. a projectile): passes through everything and is never pushed.
+   * Find what it overlaps with `intersectCircle`.
+   */
+  createSensorCircle(x: number, y: number, radius: number): BodyId;
+  /** Teleport a body (velocity is kept). */
+  setPosition(id: BodyId, x: number, y: number): void;
   /** Remove a body and its collider. Its id is never reused. */
   removeBody(id: BodyId): void;
   /** Instant velocity change of `impulse / mass`. No effect on static bodies. */

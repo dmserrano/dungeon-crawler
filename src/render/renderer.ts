@@ -110,7 +110,9 @@ export async function createRenderer(host: HTMLElement, world: PhysicsWorld): Pr
         live.add(o.id);
         let g = sprites.get(o.id);
         if (!g) {
-          g = new Graphics().circle(0, 0, o.radius).fill(o.ai ? 0xd94a4a : 0xc9743a);
+          g = new Graphics()
+            .circle(0, 0, o.radius)
+            .fill(o.projectile ? 0xff9f43 : o.ranged ? 0x9b59d9 : o.ai ? 0xd94a4a : 0xc9743a);
           sprites.set(o.id, g);
           entities.addChild(g);
         }

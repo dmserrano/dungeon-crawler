@@ -1,5 +1,5 @@
 import type { AiState } from "./ai/chaser";
-import { aiSystem, spawnChaser } from "./ai/system";
+import { aiSystem, spawnChaser, spawnRanged } from "./ai/system";
 import {
   type AttackPhase,
   attackPhaseAt,
@@ -24,8 +24,9 @@ import {
 } from "./ecs/world";
 import { aimToDir, type InputFrame } from "./input-frame";
 import type { BodyId, PhysicsWorld } from "./physics/physics-world";
+import { createProjectilePool, projectileSystem } from "./projectile";
 import { createRng, type Rng } from "./rng/rng";
-import { CHASER_STARTS, DUMMY_START, PLAYER_START, ROOM_WALLS } from "./room";
+import { CHASER_STARTS, DUMMY_START, PLAYER_START, RANGED_START, ROOM_WALLS } from "./room";
 import { hashState } from "./state/hash";
 
 export const TICK_RATE = 60;
@@ -73,11 +74,15 @@ export interface EntityView {
   flash: boolean;
   /** Enemy behavior state, or null for non-enemies (the dummy). */
   ai: AiState | null;
+  /** True for the ranged enemy. */
+  ranged: boolean;
+  /** True for an in-flight projectile. */
+  projectile: boolean;
 }
 
 export function entityViews(state: SimState): EntityView[] {
   return entitiesById(state.ecs)
-    .filter((e) => !e.player && e.position && e.radius !== undefined)
+    .filter((e) => !e.player && e.position && e.radius !== undefined && isLive(e))
     .map((e) => ({
       id: e.id,
       x: e.position?.x ?? 0,
@@ -86,8 +91,13 @@ export function entityViews(state: SimState): EntityView[] {
       hp: e.health?.hp ?? 0,
       flash: isFrozen(e),
       ai: e.ai?.state ?? null,
+      ranged: e.ranged === true,
+      projectile: e.projectile !== undefined,
     }));
 }
+
+/** Pooled projectiles that are not in flight do not exist as far as views and hashes go. */
+const isLive = (e: Entity): boolean => e.projectile === undefined || e.projectile.active;
 
 function snapshotOf(e: Entity): PlayerSnapshot {
   const { position: p, velocity: v } = e;
@@ -144,6 +154,8 @@ export function createSimState(world: PhysicsWorld, seed: number): SimState {
     radius: DUMMY_DATA.radius,
   });
   for (const c of CHASER_STARTS) spawnChaser(ecs, world, c.x, c.y);
+  spawnRanged(ecs, world, RANGED_START.x, RANGED_START.y);
+  createProjectilePool(ecs, world);
   syncSystem(ecs, world);
   return {
     events: [],
@@ -239,6 +251,7 @@ export function step(state: SimState, input: InputFrame): SimState {
   movementSystem(ecs, world);
   dashSystem(ecs, world); // runs after movement: an active dash overrides the walking velocity
   aiSystem(ecs, world, events);
+  projectileSystem(ecs, world, events);
   meleeSystem(ecs, world, events);
   damageSystem(ecs, world, events);
   freezeSystem(ecs, world);
@@ -255,7 +268,7 @@ export function step(state: SimState, input: InputFrame): SimState {
  */
 export function stateSnapshot(state: SimState) {
   const others = entitiesById(state.ecs)
-    .filter((e) => !e.player)
+    .filter((e) => !e.player && isLive(e))
     .map((e) => ({
       id: e.id,
       position: e.position,
@@ -263,6 +276,7 @@ export function stateSnapshot(state: SimState) {
       hp: e.health?.hp ?? 0,
       iframes: e.iframes ?? 0,
       frozen: e.frozen ?? 0,
+      ...(e.projectile ? { projectile: e.projectile.t } : {}),
       ...(e.ai ? { ai: { state: e.ai.state, t: e.ai.t, cooldown: e.ai.cooldown } } : {}),
     }));
   return {

@@ -11,6 +11,11 @@ export function createFpsMeter() {
   };
 }
 
+/** Debug overlay line: projectiles currently in flight. */
+export function describeProjectiles(views: readonly { projectile: boolean }[]): string {
+  return `projectiles ${views.filter((v) => v.projectile).length}`;
+}
+
 /** Debug overlay lines for enemies: a count, then each enemy's id and state name. */
 export function describeEnemies(views: readonly { id: number; ai: string | null }[]): string {
   const enemies = views.filter((v) => v.ai !== null);

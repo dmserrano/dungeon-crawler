@@ -15,6 +15,9 @@ export const CHASER_STARTS: readonly { x: number; y: number }[] = [
   { x: 40, y: 176 },
 ];
 
+/** The test room's shooter: far right, outside its aggro range of the player's start. */
+export const RANGED_START = { x: 290, y: 190 };
+
 export interface WallBox {
   x: number;
   y: number;

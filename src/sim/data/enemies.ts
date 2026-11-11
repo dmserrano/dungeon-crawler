@@ -8,4 +8,6 @@ export function parseEnemiesData(raw: unknown): EnemiesData {
   return result.data;
 }
 
-export const CHASER_DATA = parseEnemiesData(enemiesJson).chaser;
+const ENEMIES = parseEnemiesData(enemiesJson);
+export const CHASER_DATA = ENEMIES.chaser;
+export const RANGED_DATA = ENEMIES.ranged;

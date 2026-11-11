@@ -72,6 +72,16 @@ export function createRapierWorld(): PhysicsWorld {
       );
       return register(rb, col, false);
     },
+    createSensorCircle(x, y, radius) {
+      const rb = world.createRigidBody(
+        RAPIER.RigidBodyDesc.dynamic().setTranslation(x, y).setLinearDamping(0).lockRotations(),
+      );
+      const col = world.createCollider(RAPIER.ColliderDesc.ball(radius).setSensor(true), rb);
+      return register(rb, col, true);
+    },
+    setPosition(id, x, y) {
+      body(id).setTranslation({ x, y }, true);
+    },
     removeBody(id) {
       const b = bodies[id];
       if (!b) return;

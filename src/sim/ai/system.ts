@@ -1,10 +1,13 @@
 import { isFrozen, type SimEvent } from "../combat";
-import { CHASER_DATA } from "../data/enemies";
+import { CHASER_DATA, RANGED_DATA } from "../data/enemies";
 import { createEntity, type EcsWorld, type Entity, query, removeComponent } from "../ecs/world";
 import type { BodyId, PhysicsWorld, Vec2 } from "../physics/physics-world";
+import { fireProjectile } from "../projectile";
 import { type AiSense, newAiMemory, nextAiState } from "./chaser";
+import { nextRangedState } from "./ranged";
 
 const D = CHASER_DATA;
+const R = RANGED_DATA;
 
 /** Spawn a chaser at a fixed position. Fully described by `data/enemies.json`. */
 export function spawnChaser(ecs: EcsWorld, world: PhysicsWorld, x: number, y: number): Entity {
@@ -16,6 +19,21 @@ export function spawnChaser(ecs: EcsWorld, world: PhysicsWorld, x: number, y: nu
     health: { hp: D.hp, max: D.hp, iframeTicks: D.invulnTicks },
     radius: D.radius,
     staggerTicks: D.staggerTicks,
+    ai: newAiMemory(),
+  });
+}
+
+/** Spawn the ranged enemy at a fixed position. Fully described by `data/enemies.json`. */
+export function spawnRanged(ecs: EcsWorld, world: PhysicsWorld, x: number, y: number): Entity {
+  return createEntity(ecs, {
+    enemy: true,
+    ranged: true,
+    body: world.createDynamicCircle(x, y, R.radius),
+    position: { x, y },
+    velocity: { x: 0, y: 0 },
+    health: { hp: R.hp, max: R.hp, iframeTicks: R.invulnTicks },
+    radius: R.radius,
+    staggerTicks: R.staggerTicks,
     ai: newAiMemory(),
   });
 }
@@ -92,6 +110,7 @@ export function aiSystem(ecs: EcsWorld, world: PhysicsWorld, events: SimEvent[])
     (a, b) => a.id - b.id,
   );
   const ignore = new Set<BodyId>(enemies.map((e) => e.body));
+  for (const p of query(ecs, "projectile", "body")) ignore.add(p.body);
   if (player?.body !== undefined) ignore.add(player.body);
 
   for (const e of enemies) {
@@ -108,9 +127,13 @@ export function aiSystem(ecs: EcsWorld, world: PhysicsWorld, events: SimEvent[])
       staggered: interrupted,
       dead: e.health.hp <= 0,
     };
-    const ai = nextAiState(e.ai, sense, D);
+    const ai = e.ranged ? nextRangedState(e.ai, sense, R) : nextAiState(e.ai, sense, D);
     e.ai = ai;
     if (frozen) continue; // hitstop holds the body; the state already switched to stagger
+    if (e.ranged) {
+      rangedMotion(ecs, world, e, ai.state, ai.dir, dist, sense.toPlayer, enemies, ignore);
+      continue;
+    }
 
     switch (ai.state) {
       case "idle":
@@ -150,5 +173,48 @@ export function aiSystem(ecs: EcsWorld, world: PhysicsWorld, events: SimEvent[])
         break;
       }
     }
+  }
+}
+
+/**
+ * Motion and shooting for the ranged enemy's current state. Kiting is direct steering: back away
+ * inside `keepDistance.min`, close in beyond `.max`, otherwise hold. The shot leaves on the one
+ * tick spent in `fire`, along the direction locked when the telegraph began.
+ */
+function rangedMotion(
+  ecs: EcsWorld,
+  world: PhysicsWorld,
+  e: Entity & Required<Pick<Entity, "body" | "position" | "radius">>,
+  state: string,
+  lockedDir: Vec2,
+  dist: number,
+  toPlayer: Vec2,
+  enemies: readonly Entity[],
+  ignore: ReadonlySet<BodyId>,
+): void {
+  switch (state) {
+    case "kite": {
+      const want =
+        dist < R.keepDistance.min
+          ? { x: -toPlayer.x, y: -toPlayer.y }
+          : dist > R.keepDistance.max
+            ? toPlayer
+            : ZERO;
+      const dir = want === ZERO ? ZERO : steer(e, e.body, want, enemies, world, ignore);
+      world.setVelocity(e.body, dir.x * R.speed, dir.y * R.speed);
+      break;
+    }
+    case "stagger": {
+      const v = world.getVelocity(e.body);
+      world.setVelocity(e.body, v.x * R.damping, v.y * R.damping);
+      if (e.stagger !== undefined && --e.stagger <= 0) removeComponent(ecs, e, "stagger");
+      break;
+    }
+    case "fire":
+      fireProjectile(ecs, world, e.position, e.radius, lockedDir);
+      world.setVelocity(e.body, 0, 0);
+      break;
+    default: // idle, telegraph, dead
+      world.setVelocity(e.body, 0, 0);
   }
 }
