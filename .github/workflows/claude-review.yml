@@ -1,0 +1,91 @@
+name: Claude review
+# Opt-in, advisory agentic PR review (PRD #5, decision 3). It posts comments and never blocks or approves.
+# Triggers, both gated to someone with write access on a non-draft PR from this repo (never forks):
+#   1. a maintainer applies the `review` label to a PR
+#   2. a PR comment containing `@claude review`
+# Never runs on push or PR open. `claude.yml` ignores `@claude review` comments so they don't double-trigger.
+on:
+  pull_request:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  gate:
+    # Cheap event filter first so unrelated PR comments and labels skip the whole workflow.
+    if: |
+      (github.event_name == 'pull_request' && github.event.label.name == 'review') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+        contains(github.event.comment.body, '@claude review'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      ok: ${{ steps.check.outputs.ok }}
+      number: ${{ steps.check.outputs.number }}
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          PR: ${{ github.event.pull_request.number || github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          echo "number=$PR" >> "$GITHUB_OUTPUT"
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+
+          # The actor (labeler or commenter) must have write access. Triage can label, so check explicitly.
+          perm=$(gh api "repos/$REPO/collaborators/$ACTOR/permission" --jq .permission)
+          case "$perm" in
+            admin | maintain | write) ;;
+            *) echo "::notice::$ACTOR has '$perm' permission; review needs write access."; exit 0 ;;
+          esac
+
+          pr=$(gh pr view "$PR" --repo "$REPO" --json state,isDraft,isCrossRepository,headRefOid)
+          if [ "$(jq -r .state <<<"$pr")" != "OPEN" ]; then echo "::notice::PR is not open."; exit 0; fi
+          if [ "$(jq -r .isDraft <<<"$pr")" = "true" ]; then echo "::notice::PR is a draft."; exit 0; fi
+          if [ "$(jq -r .isCrossRepository <<<"$pr")" = "true" ]; then echo "::notice::PR is from a fork."; exit 0; fi
+
+          echo "sha=$(jq -r .headRefOid <<<"$pr")" >> "$GITHUB_OUTPUT"
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+  review:
+    needs: gate
+    if: needs.gate.outputs.ok == 'true'
+    # Job-level (not workflow-level) so an unrelated comment can't cancel a running review.
+    concurrency:
+      group: claude-review-${{ needs.gate.outputs.number }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write # inline comments and the summary comment
+      id-token: write # the action exchanges the OIDC token for its app token
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # do NOT set allowed_non_write_users
+          plugin_marketplaces: https://github.com/anthropics/claude-plugins-official.git
+          plugins: code-review@claude-plugins-official
+          prompt: /code-review:code-review ${{ github.repository }}/pull/${{ needs.gate.outputs.number }} --comment
+          claude_args: |
+            --max-turns 40
+            --max-budget-usd 3
+            --allowedTools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),mcp__github_inline_comment__create_inline_comment"
+      # The action hides tool calls from the public job log; this prints counts only.
+      - name: Summarize Claude tool usage
+        if: always()
+        run: node scripts/summarize-claude-run.mjs | tee -a "$GITHUB_STEP_SUMMARY"
