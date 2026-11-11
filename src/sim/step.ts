@@ -23,6 +23,7 @@ import {
   removeComponent,
 } from "./ecs/world";
 import { aimToDir, type InputFrame } from "./input-frame";
+import { buildNavGrid, type NavGrid } from "./pathfinding";
 import type { BodyId, PhysicsWorld } from "./physics/physics-world";
 import { createProjectilePool, projectileSystem } from "./projectile";
 import { createRng, type Rng } from "./rng/rng";
@@ -57,6 +58,8 @@ export interface SimState {
   readonly rng: Rng;
   readonly world: PhysicsWorld;
   readonly ecs: EcsWorld;
+  /** Wall grid for enemy pathfinding (static for the room). */
+  readonly nav: NavGrid;
   readonly playerId: BodyId;
   readonly player: PlayerSnapshot;
   /** Event queue: damage is consumed within the tick; death notices last until the next tick. */
@@ -181,6 +184,7 @@ export function createSimState(world: PhysicsWorld, seed: number, room: Room): S
     rng: createRng(seed),
     world,
     ecs,
+    nav: buildNavGrid(room),
     playerId,
     player: snapshotOf(playerEntity(ecs)),
   };
@@ -270,7 +274,7 @@ export function step(state: SimState, input: InputFrame): SimState {
   releaseSystem(ecs, world);
   movementSystem(ecs, world);
   dashSystem(ecs, world); // runs after movement: an active dash overrides the walking velocity
-  aiSystem(ecs, world, events);
+  aiSystem(ecs, world, events, state.nav);
   projectileSystem(ecs, world, events);
   meleeSystem(ecs, world, events);
   damageSystem(ecs, world, events);

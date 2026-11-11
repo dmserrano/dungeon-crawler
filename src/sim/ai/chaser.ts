@@ -26,6 +26,10 @@ export interface AiMemory {
   dir: { x: number; y: number };
   /** True once this lunge has connected (or been spent), so it damages at most once. */
   spent: boolean;
+  /** Cached A* waypoints (cell centres) toward the player; empty when none (ADR 0008). */
+  path: { x: number; y: number }[];
+  /** Ticks until the path is recomputed; staggered per enemy at spawn. */
+  pathT: number;
 }
 
 /** What the enemy perceives this tick. */
@@ -40,7 +44,15 @@ export interface AiSense {
 }
 
 export function newAiMemory(): AiMemory {
-  return { state: "idle", t: 0, cooldown: 0, dir: { x: 0, y: 0 }, spent: false };
+  return {
+    state: "idle",
+    t: 0,
+    cooldown: 0,
+    dir: { x: 0, y: 0 },
+    spent: false,
+    path: [],
+    pathT: 0,
+  };
 }
 
 export const enter = (m: AiMemory, state: AiState, patch: Partial<AiMemory> = {}): AiMemory => ({
