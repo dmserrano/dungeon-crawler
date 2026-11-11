@@ -1,5 +1,5 @@
 import { World } from "miniplex";
-import type { AiMemory } from "../ai/chaser";
+import type { AiMemory } from "../ai/memory";
 import type { BodyId } from "../physics/physics-world";
 
 /** Components. Every entity has a stable numeric `id` from the world's counter. */

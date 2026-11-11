@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { enemiesDataSchema } from "../data/schemas/enemies";
 import { describeProjectiles } from "../src/debug/stats";
-import { type AiMemory, type AiSense, newAiMemory } from "../src/sim/ai/chaser";
+import { type AiMemory, type AiSense, newAiMemory } from "../src/sim/ai/memory";
 import { nextRangedState } from "../src/sim/ai/ranged";
 import type { SimEvent } from "../src/sim/combat";
 import { CHASER_DATA, parseEnemiesData, RANGED_DATA } from "../src/sim/data/enemies";
