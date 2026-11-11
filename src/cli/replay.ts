@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { createRapierWorld, initPhysics } from "../sim/physics/rapier-world";
 import { parseReplay, runReplay } from "../sim/replay";
+import { loadRoomByName } from "./rooms";
 
 export interface VerifyResult {
   ok: boolean;
@@ -45,7 +46,7 @@ export async function verifyReplayFile(path: string): Promise<VerifyResult> {
   const base = { ticks: replay.ticks, expectedHash: replay.finalHash };
   try {
     await initPhysics();
-    runReplay(replay, createRapierWorld());
+    runReplay(replay, createRapierWorld(), loadRoomByName("test-arena"));
   } catch (e) {
     const m = msg(e);
     const actual = /got (\S+)$/.exec(m)?.[1] ?? null;

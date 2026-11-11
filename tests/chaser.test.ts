@@ -11,8 +11,8 @@ import { type InputFrame, NO_INPUT, quantizeAim } from "../src/sim/input-frame";
 import type { PhysicsWorld } from "../src/sim/physics/physics-world";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
 import { buildReplay, parseReplay, runReplay } from "../src/sim/replay";
-import { CHASER_STARTS } from "../src/sim/room";
 import { createSimState, entityViews, hashSimState, type SimState, step } from "../src/sim/step";
+import { ARENA, CHASER_STARTS } from "./arena";
 
 const D = CHASER_DATA;
 const SEED = 21;
@@ -215,7 +215,7 @@ const hold = (n: number, f: Partial<InputFrame>): InputFrame[] =>
   Array.from({ length: n }, () => ({ ...NO_INPUT, ...f }));
 
 function session() {
-  let s: SimState = createSimState(createRapierWorld(), SEED);
+  let s: SimState = createSimState(createRapierWorld(), SEED, ARENA);
   const log: InputFrame[] = [];
   const states: Record<number, string[]> = {};
   /** Player HP after each tick. */
@@ -257,7 +257,11 @@ function wake(t: Session) {
 /** Round-trips the log through the replay format and checks the hash. */
 function expectReplay(t: Session, hash: string) {
   const replay = buildReplay(SEED, t.log, t.s);
-  const again = runReplay(parseReplay(JSON.parse(JSON.stringify(replay))), createRapierWorld());
+  const again = runReplay(
+    parseReplay(JSON.parse(JSON.stringify(replay))),
+    createRapierWorld(),
+    ARENA,
+  );
   expect(hashSimState(again)).toBe(hashSimState(t.s));
   expect(hashSimState(t.s)).toBe(hash);
 }
@@ -270,7 +274,7 @@ describe("chaser scenarios", () => {
   });
 
   it("spawns two chasers at the fixed positions next to the training dummy", () => {
-    const s = createSimState(createRapierWorld(), SEED);
+    const s = createSimState(createRapierWorld(), SEED, ARENA);
     const views = entityViews(s);
     expect(views.filter((v) => v.ai === "idle" && !v.ranged).map((v) => [v.x, v.y])).toEqual(
       CHASER_STARTS.map((c) => [c.x, c.y]),
@@ -288,7 +292,7 @@ describe("chaser scenarios", () => {
 
   it("separate softly from each other", () => {
     const world = createRapierWorld();
-    const s = createSimState(world, SEED);
+    const s = createSimState(world, SEED, ARENA);
     const a = spawnChaser(s.ecs, world, 220, 150);
     const b = spawnChaser(s.ecs, world, 222, 150);
     let st = s;

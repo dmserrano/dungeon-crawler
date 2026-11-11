@@ -17,8 +17,8 @@ import {
   projectileSystem,
 } from "../src/sim/projectile";
 import { buildReplay, parseReplay, runReplay } from "../src/sim/replay";
-import { RANGED_START } from "../src/sim/room";
 import { createSimState, entityViews, hashSimState, type SimState, step } from "../src/sim/step";
+import { ARENA, RANGED_START } from "./arena";
 
 const R = RANGED_DATA;
 const P = R.projectile;
@@ -209,7 +209,7 @@ const hold = (n: number, f: Partial<InputFrame>): InputFrame[] =>
   Array.from({ length: n }, () => ({ ...NO_INPUT, ...f }));
 
 function session() {
-  let s: SimState = createSimState(createRapierWorld(), SEED);
+  let s: SimState = createSimState(createRapierWorld(), SEED, ARENA);
   const log: InputFrame[] = [];
   /** Shooter state after each tick. */
   const states: string[] = [];
@@ -246,7 +246,11 @@ type Session = ReturnType<typeof session>;
 
 function expectReplay(t: Session, hash: string) {
   const replay = buildReplay(SEED, t.log, t.s);
-  const again = runReplay(parseReplay(JSON.parse(JSON.stringify(replay))), createRapierWorld());
+  const again = runReplay(
+    parseReplay(JSON.parse(JSON.stringify(replay))),
+    createRapierWorld(),
+    ARENA,
+  );
   expect(hashSimState(again)).toBe(hashSimState(t.s));
   expect(hashSimState(t.s)).toBe(hash);
 }
@@ -257,7 +261,7 @@ describe("ranged scenarios", () => {
   });
 
   it("the test room holds one shooter at its fixed spot, idle, with no projectile in flight", () => {
-    const s = createSimState(createRapierWorld(), SEED);
+    const s = createSimState(createRapierWorld(), SEED, ARENA);
     const views = entityViews(s);
     const shooter = views.filter((v) => v.ranged);
     expect(shooter.map((v) => [v.x, v.y, v.ai])).toEqual([
@@ -359,7 +363,7 @@ describe("ranged scenarios", () => {
   });
 
   it("projectiles fly through enemies and other projectiles, and have nothing for a swing to hit", () => {
-    let s = createSimState(createRapierWorld(), SEED);
+    let s = createSimState(createRapierWorld(), SEED, ARENA);
     // Two shots along the chaser's row at (40, 48), straight at the left wall.
     const left = { x: -1, y: 0 };
     expect(fireProjectile(s.ecs, s.world, { x: 90, y: 48 }, 6, left)).toBe(true);

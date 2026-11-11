@@ -3,11 +3,15 @@
 //   pnpm bench --json out.json  also write results for bench/compare.mjs
 import { writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
+import { loadRoomByName } from "../src/cli/rooms";
 import type { InputFrame } from "../src/sim/input-frame";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
 import { createRng } from "../src/sim/rng/rng";
-import { ROOM_HEIGHT, ROOM_WIDTH } from "../src/sim/room";
 import { createSimState, step, TICK_DT } from "../src/sim/step";
+
+const ARENA = loadRoomByName("test-arena");
+const ROOM_WIDTH = ARENA.width;
+const ROOM_HEIGHT = ARENA.height;
 
 const SEED = 1337;
 const BODIES = 200;
@@ -57,7 +61,7 @@ function measure(name: string, tick: (i: number) => void): BenchResult {
 /** A room with BODIES seeded, moving dynamic circles, all created through the PhysicsWorld interface. */
 function stressState() {
   const world = createRapierWorld();
-  const state = createSimState(world, SEED);
+  const state = createSimState(world, SEED, ARENA);
   const rng = createRng(SEED);
   for (let i = 0; i < BODIES; i++) {
     const id = world.createDynamicCircle(rng.next() * ROOM_WIDTH, rng.next() * ROOM_HEIGHT, 4);
@@ -72,7 +76,7 @@ async function runBench(): Promise<BenchResult[]> {
   const frames = inputs(TICKS_PER_SAMPLE);
   const frame = (i: number) => frames[i % frames.length] as InputFrame;
 
-  let small = createSimState(createRapierWorld(), SEED);
+  let small = createSimState(createRapierWorld(), SEED, ARENA);
   results.push(
     measure("step() player room", (i) => {
       small = step(small, frame(i));

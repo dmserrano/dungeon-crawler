@@ -11,3 +11,5 @@ export function parseEnemiesData(raw: unknown): EnemiesData {
 const ENEMIES = parseEnemiesData(enemiesJson);
 export const CHASER_DATA = ENEMIES.chaser;
 export const RANGED_DATA = ENEMIES.ranged;
+/** Valid `type` values for enemy objects in room maps. */
+export const ENEMY_TYPES: readonly string[] = Object.keys(ENEMIES);
