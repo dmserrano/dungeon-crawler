@@ -1,6 +1,6 @@
 # 0004: Defer A* pathfinding to the rooms PRD
 
-Status: accepted (2026-11-10)
+Status: superseded by ADR 0008 (2026-11-10)
 
 ## Context
 
