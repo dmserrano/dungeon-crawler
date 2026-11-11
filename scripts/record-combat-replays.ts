@@ -3,6 +3,7 @@
  * Re-run it (and commit the output under tests/fixtures/) whenever gameplay changes break them.
  */
 import { writeFileSync } from "node:fs";
+import { loadRoomByName } from "../src/cli/rooms";
 import { type InputFrame, NO_INPUT, quantizeAim } from "../src/sim/input-frame";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
 import { buildReplay } from "../src/sim/replay";
@@ -12,7 +13,8 @@ await initPhysics();
 const seed = Number(process.argv[2] ?? 7);
 const mode = process.argv[3] ?? "clear";
 const out = process.argv[4];
-let s = createSimState(createRapierWorld(), seed);
+const ARENA = loadRoomByName("test-arena");
+let s = createSimState(createRapierWorld(), seed, ARENA);
 const frames: InputFrame[] = [];
 for (let t = 0; t < 4000 && !s.cleared && !s.player.dead; t++) {
   const me = s.player;

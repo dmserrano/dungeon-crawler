@@ -1,5 +1,6 @@
 import type { InputFrame } from "./input-frame";
 import type { PhysicsWorld } from "./physics/physics-world";
+import type { Room } from "./room";
 import { createSimState, hashSimState, type SimState, step } from "./step";
 
 /**
@@ -133,8 +134,8 @@ export function buildReplay(
  * Re-simulate a replay on a fresh, empty physics world and return the final state.
  * Throws `ReplayError` if the final hash differs from the recorded one.
  */
-export function runReplay(replay: Replay, world: PhysicsWorld): SimState {
-  let state = createSimState(world, replay.seed);
+export function runReplay(replay: Replay, world: PhysicsWorld, room: Room): SimState {
+  let state = createSimState(world, replay.seed, room);
   for (const frame of decodeInputs(replay.inputs)) state = step(state, frame);
   const hash = hashSimState(state);
   if (hash !== replay.finalHash) {

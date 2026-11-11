@@ -2,7 +2,7 @@ import { Application, Container, Graphics, Text } from "pixi.js";
 import { PLAYER_DATA } from "../sim/data/player";
 import { aimToDir } from "../sim/input-frame";
 import type { PhysicsWorld } from "../sim/physics/physics-world";
-import { PLAYER_RADIUS, ROOM_HEIGHT, ROOM_WALLS, ROOM_WIDTH, WALL_THICKNESS } from "../sim/room";
+import { PLAYER_RADIUS, type Room, WALL_THICKNESS } from "../sim/room";
 import type { EntityView, PlayerSnapshot } from "../sim/step";
 import type { SlashView } from "./slash-tracker";
 
@@ -86,12 +86,16 @@ export interface Renderer {
   readonly debugOn: boolean;
 }
 
-export async function createRenderer(host: HTMLElement, world: PhysicsWorld): Promise<Renderer> {
+export async function createRenderer(
+  host: HTMLElement,
+  world: PhysicsWorld,
+  room: Room,
+): Promise<Renderer> {
   const margin = WALL_THICKNESS;
   const app = new Application();
   await app.init({
-    width: (ROOM_WIDTH + margin * 2) * SCALE,
-    height: (ROOM_HEIGHT + margin * 2) * SCALE,
+    width: (room.width + margin * 2) * SCALE,
+    height: (room.height + margin * 2) * SCALE,
     background: 0x14121a,
     antialias: false,
     autoStart: false,
@@ -103,9 +107,9 @@ export async function createRenderer(host: HTMLElement, world: PhysicsWorld): Pr
   stage.position.set(margin * SCALE, margin * SCALE);
   app.stage.addChild(stage);
 
-  const floor = new Graphics().rect(0, 0, ROOM_WIDTH, ROOM_HEIGHT).fill(0x2b2838);
+  const floor = new Graphics().rect(0, 0, room.width, room.height).fill(0x2b2838);
   const walls = new Graphics();
-  for (const w of ROOM_WALLS) {
+  for (const w of room.walls) {
     walls.rect(w.x - w.hw, w.y - w.hh, w.hw * 2, w.hh * 2).fill(0x58506e);
   }
   const player = new Graphics().circle(0, 0, PLAYER_RADIUS).fill(0xe8c547);

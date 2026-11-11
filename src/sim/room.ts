@@ -1,22 +1,8 @@
 import { PLAYER_DATA } from "./data/player";
 
-/** Hard-coded rectangular room (Tiled loading comes in a later slice). World units are pixels. */
-export const ROOM_WIDTH = 320;
-export const ROOM_HEIGHT = 224;
+/** World units are pixels. Rooms are loaded from Tiled maps (see `src/sim/data/room.ts`). */
 export const WALL_THICKNESS = 16;
 export const PLAYER_RADIUS = PLAYER_DATA.radius;
-export const PLAYER_START = { x: ROOM_WIDTH / 2, y: ROOM_HEIGHT / 2 };
-/** Where the test room's training dummy stands (off the player's row, so dashes stay clear). */
-export const DUMMY_START = { x: 240, y: 64 };
-
-/** Chasers in the test room: left side, outside their aggro range of the player's start. */
-export const CHASER_STARTS: readonly { x: number; y: number }[] = [
-  { x: 40, y: 48 },
-  { x: 40, y: 176 },
-];
-
-/** The test room's shooter: far right, outside its aggro range of the player's start. */
-export const RANGED_START = { x: 290, y: 190 };
 
 export interface WallBox {
   x: number;
@@ -25,12 +11,30 @@ export interface WallBox {
   hh: number;
 }
 
-const T = WALL_THICKNESS / 2;
+export interface Point {
+  x: number;
+  y: number;
+}
 
-/** Four walls whose inner faces bound [0, ROOM_WIDTH] x [0, ROOM_HEIGHT]. */
-export const ROOM_WALLS: readonly WallBox[] = [
-  { x: ROOM_WIDTH / 2, y: -T, hw: ROOM_WIDTH / 2 + WALL_THICKNESS, hh: T },
-  { x: ROOM_WIDTH / 2, y: ROOM_HEIGHT + T, hw: ROOM_WIDTH / 2 + WALL_THICKNESS, hh: T },
-  { x: -T, y: ROOM_HEIGHT / 2, hw: T, hh: ROOM_HEIGHT / 2 },
-  { x: ROOM_WIDTH + T, y: ROOM_HEIGHT / 2, hw: T, hh: ROOM_HEIGHT / 2 },
-];
+export interface EnemySpawn extends Point {
+  /** Key in `data/enemies.json`. */
+  type: string;
+}
+
+/** Parsed and validated but not yet acted on (doors come in a later slice). */
+export interface DoorSpawn extends Point {
+  name: string;
+  to: string;
+  toDoor: string;
+}
+
+/** A loaded room. The playable area is [0, width] x [0, height]; walls may lie outside it. */
+export interface Room {
+  width: number;
+  height: number;
+  walls: readonly WallBox[];
+  playerStart: Point;
+  dummy: Point | null;
+  enemies: readonly EnemySpawn[];
+  doors: readonly DoorSpawn[];
+}

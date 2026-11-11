@@ -26,7 +26,7 @@ import { aimToDir, type InputFrame } from "./input-frame";
 import type { BodyId, PhysicsWorld } from "./physics/physics-world";
 import { createProjectilePool, projectileSystem } from "./projectile";
 import { createRng, type Rng } from "./rng/rng";
-import { CHASER_STARTS, DUMMY_START, PLAYER_START, RANGED_START, ROOM_WALLS } from "./room";
+import type { Room } from "./room";
 import { hashState } from "./state/hash";
 
 export const TICK_RATE = 60;
@@ -141,9 +141,13 @@ function syncSystem(ecs: EcsWorld, world: PhysicsWorld): void {
 }
 
 /** Build the initial state. `world` must be a fresh, empty physics world. */
-export function createSimState(world: PhysicsWorld, seed: number): SimState {
-  for (const w of ROOM_WALLS) world.createStaticBox(w.x, w.y, w.hw, w.hh);
-  const playerId = world.createDynamicCircle(PLAYER_START.x, PLAYER_START.y, PLAYER_DATA.radius);
+export function createSimState(world: PhysicsWorld, seed: number, room: Room): SimState {
+  for (const w of room.walls) world.createStaticBox(w.x, w.y, w.hw, w.hh);
+  const playerId = world.createDynamicCircle(
+    room.playerStart.x,
+    room.playerStart.y,
+    PLAYER_DATA.radius,
+  );
   const ecs = createEcsWorld();
   createEntity(ecs, {
     player: true,
@@ -155,14 +159,18 @@ export function createSimState(world: PhysicsWorld, seed: number): SimState {
     radius: PLAYER_DATA.radius,
   });
   // Training dummy: solid, never moves, takes damage and dies.
-  createEntity(ecs, {
-    dummy: true,
-    body: world.createStaticCircle(DUMMY_START.x, DUMMY_START.y, DUMMY_DATA.radius),
-    health: { hp: DUMMY_DATA.hp, max: DUMMY_DATA.hp, iframeTicks: DUMMY_DATA.invulnTicks },
-    radius: DUMMY_DATA.radius,
-  });
-  for (const c of CHASER_STARTS) spawnChaser(ecs, world, c.x, c.y);
-  spawnRanged(ecs, world, RANGED_START.x, RANGED_START.y);
+  if (room.dummy) {
+    createEntity(ecs, {
+      dummy: true,
+      body: world.createStaticCircle(room.dummy.x, room.dummy.y, DUMMY_DATA.radius),
+      health: { hp: DUMMY_DATA.hp, max: DUMMY_DATA.hp, iframeTicks: DUMMY_DATA.invulnTicks },
+      radius: DUMMY_DATA.radius,
+    });
+  }
+  for (const e of room.enemies) {
+    if (e.type === "chaser") spawnChaser(ecs, world, e.x, e.y);
+    else if (e.type === "ranged") spawnRanged(ecs, world, e.x, e.y);
+  }
   createProjectilePool(ecs, world);
   syncSystem(ecs, world);
   return {

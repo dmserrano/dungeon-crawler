@@ -11,6 +11,7 @@ import {
   SIM_VERSION,
 } from "../src/sim/replay";
 import { createSimState, hashSimState, step } from "../src/sim/step";
+import { ARENA } from "./arena";
 
 const hold = (n: number, f: Partial<InputFrame>): InputFrame[] =>
   Array.from({ length: n }, () => ({ ...NO_INPUT, ...f }));
@@ -110,7 +111,7 @@ describe("runReplay and recorder", () => {
       inputs: encodeInputs(LOG),
       finalHash: SKELETON_HASH,
     };
-    const final = runReplay(replay, createRapierWorld());
+    const final = runReplay(replay, createRapierWorld(), ARENA);
     expect(hashSimState(final)).toBe(SKELETON_HASH);
   });
 
@@ -123,12 +124,12 @@ describe("runReplay and recorder", () => {
       inputs: encodeInputs(LOG),
       finalHash: "deadbeef",
     };
-    expect(() => runReplay(replay, createRapierWorld())).toThrow(/hash/i);
+    expect(() => runReplay(replay, createRapierWorld(), ARENA)).toThrow(/hash/i);
   });
 
   it("a recorded session re-runs to its own finalHash", () => {
     const rec = createRecorder();
-    let s = createSimState(createRapierWorld(), SEED);
+    let s = createSimState(createRapierWorld(), SEED, ARENA);
     for (const f of LOG) {
       rec.record(f);
       s = step(s, f);
@@ -136,7 +137,11 @@ describe("runReplay and recorder", () => {
     const replay = rec.build(s);
     expect(replay.ticks).toBe(LOG.length);
     expect(replay.finalHash).toBe(hashSimState(s));
-    const again = runReplay(parseReplay(JSON.parse(JSON.stringify(replay))), createRapierWorld());
+    const again = runReplay(
+      parseReplay(JSON.parse(JSON.stringify(replay))),
+      createRapierWorld(),
+      ARENA,
+    );
     expect(hashSimState(again)).toBe(replay.finalHash);
   });
 });
