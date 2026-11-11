@@ -6,6 +6,7 @@ import type { PhysicsWorld } from "../sim/physics/physics-world";
 import { PLAYER_RADIUS, type Room, WALL_THICKNESS } from "../sim/room";
 import type { EntityView, PlayerSnapshot } from "../sim/step";
 import { loadArt } from "./art";
+import { doorPlacement } from "./doors";
 import type { SlashView } from "./slash-tracker";
 
 const SCALE = 3;
@@ -84,6 +85,8 @@ export interface Renderer {
     slash: SlashView | null,
     /** Black overlay opacity 0-1 (door transitions). */
     fade: number,
+    /** True while the room's doors are locked shut (live enemies). */
+    locked: boolean,
   ): void;
   /** Swap the drawn tiles and canvas size after a room transition. */
   setRoom(room: Room, map: RoomMap): void;
@@ -143,6 +146,37 @@ export async function createRenderer(
     }
   };
   buildTiles(map);
+
+  // Doors are drawn over the wall tiles (render only; the sim has no gap in the wall). Art swaps to
+  // the shut door while the room is locked.
+  const doorLayer = new Container();
+  let doorHalves: { left: Sprite; right: Sprite }[] = [];
+  let doorsLocked = false;
+  const applyDoorArt = (): void => {
+    const s = art.manifest.sprites;
+    for (const d of doorHalves) {
+      d.left.texture = art.tile(doorsLocked ? s.doorLockedLeft : s.doorOpenLeft);
+      d.right.texture = art.tile(doorsLocked ? s.doorLockedRight : s.doorOpenRight);
+    }
+  };
+  const buildDoors = (r: Room): void => {
+    for (const old of doorLayer.removeChildren()) old.destroy({ children: true });
+    doorHalves = r.doors.map((door) => {
+      const at = doorPlacement(r, door);
+      const pair = new Container();
+      pair.position.set(at.x, at.y);
+      pair.rotation = at.rotation;
+      const left = sprite(0);
+      const right = sprite(0);
+      left.position.set(-8, 0);
+      right.position.set(8, 0);
+      pair.addChild(left, right);
+      doorLayer.addChild(pair);
+      return { left, right };
+    });
+    applyDoorArt();
+  };
+  buildDoors(room);
   const fadeOverlay = new Graphics();
   const player = sprite(art.manifest.sprites.player);
   const slashFx = new Graphics();
@@ -150,7 +184,7 @@ export async function createRenderer(
   debug.visible = false;
   const entities = new Container();
   const sprites = new Map<number, Sprite>();
-  stage.addChild(tiles, entities, player, slashFx, debug, fadeOverlay);
+  stage.addChild(tiles, doorLayer, entities, player, slashFx, debug, fadeOverlay);
   let size = { w: room.width, h: room.height };
 
   const stats = new Text({
@@ -168,10 +202,15 @@ export async function createRenderer(
     },
     setRoom(next, nextMap) {
       buildTiles(nextMap);
+      buildDoors(next);
       size = { w: next.width, h: next.height };
       app.renderer.resize((next.width + margin * 2) * SCALE, (next.height + margin * 2) * SCALE);
     },
-    draw(prev, cur, alpha, others, slash, fade) {
+    draw(prev, cur, alpha, others, slash, fade, locked) {
+      if (locked !== doorsLocked) {
+        doorsLocked = locked;
+        applyDoorArt();
+      }
       fadeOverlay.clear();
       if (fade > 0) {
         fadeOverlay

@@ -31,7 +31,7 @@ async function main() {
   const seed = seedFromSearch(window.location.search);
   const log = createLogger({ capacity: 500 });
   installErrorCapture(window, log);
-  const floor = loadFloor("test-arena");
+  const floor = loadFloor("mini");
   const recorder = createRecorder(floor.id);
   const room = loadRoom(floor.start);
   let cur = createSimState(world, seed, room, { roomId: floor.start, rooms: loadRoom });
@@ -120,6 +120,7 @@ async function main() {
       entityViews(cur),
       slash.view(alpha, cur.player.frozen > 0),
       transitionFade(cur.transition),
+      cur.locked,
     );
     const rate = fps.frame(now);
     if (renderer.debugOn) {

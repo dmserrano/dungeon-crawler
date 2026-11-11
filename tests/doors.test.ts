@@ -52,7 +52,7 @@ const rooms: RoomSource = (id) => {
   if (!r) throw new Error(`unknown room ${id}`);
   return r;
 };
-const FLOOR = { id: "scenario", start: "a" };
+const FLOOR = { id: "scenario", start: "a", rooms: ["a", "b", "quiet"] };
 
 const frame = (f: Partial<InputFrame>): InputFrame => ({ ...NO_INPUT, ...f });
 const LEFT = frame({ left: true, attack: true, aim: 128 });
