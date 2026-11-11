@@ -34,6 +34,7 @@ pnpm format          # biome check --write
 - One branch/worktree per issue, one PR per issue. Agents never merge; a human reviews and squash-merges. `main` requires green CI.
 - Cloud agents start cold: if an issue lacks context you need, comment on it rather than guessing.
 - Commit messages: short imperative subject. No co-author trailers.
+- Run `pnpm format` then `pnpm verify` immediately before every push, including docs-only and workflow-only changes. Biome formats `*.md` and `.github/**`; formatting-only failures have reached CI on agent branches.
 - New or changed workflow steps must pin every action by full commit SHA with a trailing version comment (`uses: owner/repo@<40-char-sha> # v1.2.3`); never a mutable tag. Resolve the SHA from the upstream release tag.
 
 ## Performance budget
