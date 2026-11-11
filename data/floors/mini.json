@@ -1,0 +1,4 @@
+{
+  "start": "hub",
+  "rooms": ["hub", "chasers", "ranged", "mixed"]
+}
