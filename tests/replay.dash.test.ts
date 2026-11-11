@@ -3,8 +3,9 @@ import { PLAYER_DATA } from "../src/sim/data/player";
 import { aimToDir, type InputFrame, NO_INPUT, quantizeAim } from "../src/sim/input-frame";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
 import { buildReplay, parseReplay, runReplay } from "../src/sim/replay";
-import { PLAYER_RADIUS, PLAYER_START, ROOM_WIDTH } from "../src/sim/room";
+import { PLAYER_RADIUS } from "../src/sim/room";
 import { createSimState, hashSimState, type SimState, step } from "../src/sim/step";
+import { ARENA, PLAYER_START, ROOM_WIDTH } from "./arena";
 
 const { distance, ticks: DASH_TICKS, iframeTicks, cooldownTicks } = PLAYER_DATA.dash;
 const hold = (n: number, f: Partial<InputFrame>): InputFrame[] =>
@@ -51,7 +52,7 @@ describe("dash", () => {
     await initPhysics();
   });
 
-  const fresh = () => createSimState(createRapierWorld(), SEED);
+  const fresh = () => createSimState(createRapierWorld(), SEED, ARENA);
   const run = (s: SimState, frames: InputFrame[]) => {
     for (const f of frames) s = step(s, f);
     return s;
@@ -127,7 +128,11 @@ describe("dash", () => {
     // Deterministic, and the replay round-trips through the v2 format.
     const replay = buildReplay(SEED, log, s);
     expect(replay.version).toBe(2);
-    const again = runReplay(parseReplay(JSON.parse(JSON.stringify(replay))), createRapierWorld());
+    const again = runReplay(
+      parseReplay(JSON.parse(JSON.stringify(replay))),
+      createRapierWorld(),
+      ARENA,
+    );
     expect(hashSimState(again)).toBe(hashSimState(s));
     expect(hashSimState(s)).toBe(EXPECTED_HASH);
   });

@@ -7,6 +7,7 @@ import { NO_INPUT } from "../src/sim/input-frame";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
 import { decodeInputs, parseReplay, type Replay, runReplay } from "../src/sim/replay";
 import { createSimState, entityViews, hashSimState, step, TICK_DT } from "../src/sim/step";
+import { ARENA } from "./arena";
 
 // Acceptance replays for the whole combat loop. If gameplay changes break them, re-record with
 // scripts/record-combat-replays.ts (and bump SIM_VERSION when behavior changed).
@@ -21,7 +22,7 @@ describe("combat scenario replays", () => {
   it("clears the test room: both chasers, the shooter and the dummy die, the player lives", () => {
     const replay = load("replay.combat-room-clear.json");
     expect(replay.finalHash).toBe("f2fca15a");
-    const final = runReplay(replay, createRapierWorld());
+    const final = runReplay(replay, createRapierWorld(), ARENA);
     expect(hashSimState(final)).toBe("f2fca15a");
     expect(final.cleared).toBe(true);
     expect(final.player.dead).toBe(false);
@@ -32,7 +33,7 @@ describe("combat scenario replays", () => {
 
   it("emits 'room cleared' exactly once, on the tick the last enemy dies", () => {
     const replay = load("replay.combat-room-clear.json");
-    let s = createSimState(createRapierWorld(), replay.seed);
+    let s = createSimState(createRapierWorld(), replay.seed, ARENA);
     const frames = decodeInputs(replay.inputs);
     const clearedAt: number[] = [];
     for (const f of frames) {
@@ -49,7 +50,7 @@ describe("combat scenario replays", () => {
   it("ends in player death, which stops the sim and never reports a clear", () => {
     const replay = load("replay.combat-player-death.json");
     expect(replay.finalHash).toBe("86701bff");
-    const final = runReplay(replay, createRapierWorld());
+    const final = runReplay(replay, createRapierWorld(), ARENA);
     expect(hashSimState(final)).toBe("86701bff");
     expect(final.player.dead).toBe(true);
     expect(final.player.hp).toBe(0);
@@ -107,7 +108,7 @@ describe("pause and single-step", () => {
 
   it("a paused-and-stepped session exports a replay that verifies", () => {
     const recorder = createRecorder();
-    let s = createSimState(createRapierWorld(), 5);
+    let s = createSimState(createRapierWorld(), 5, ARENA);
     const loop = createFixedLoop(() => {
       recorder.record(NO_INPUT);
       s = step(s, NO_INPUT);
@@ -121,7 +122,9 @@ describe("pause and single-step", () => {
     const replay = recorder.build(s);
     expect(replay.ticks).toBe(6);
     expect(
-      hashSimState(runReplay(parseReplay(JSON.parse(JSON.stringify(replay))), createRapierWorld())),
+      hashSimState(
+        runReplay(parseReplay(JSON.parse(JSON.stringify(replay))), createRapierWorld(), ARENA),
+      ),
     ).toBe(replay.finalHash);
   });
 });

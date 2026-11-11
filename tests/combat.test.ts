@@ -8,8 +8,8 @@ import { createEntity, entitiesById, query } from "../src/sim/ecs/world";
 import { type InputFrame, NO_INPUT, quantizeAim } from "../src/sim/input-frame";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
 import { buildReplay, parseReplay, runReplay } from "../src/sim/replay";
-import { DUMMY_START } from "../src/sim/room";
 import { createSimState, hashSimState, type SimState, step } from "../src/sim/step";
+import { ARENA, DUMMY_START } from "./arena";
 
 const A = PLAYER_DATA.attack;
 const SEED = 7;
@@ -19,7 +19,7 @@ const hold = (n: number, f: Partial<InputFrame>): InputFrame[] =>
 /** Steps a sim while recording the input log; `hurt` injects damage on the player. */
 function session() {
   const world = createRapierWorld();
-  let s: SimState = createSimState(world, SEED);
+  let s: SimState = createSimState(world, SEED, ARENA);
   const log: InputFrame[] = [];
   const playerEntityId = () => {
     for (const e of query(s.ecs, "player")) return e.id;
@@ -186,7 +186,11 @@ describe("scenario replays", () => {
     expect(t.s.player.dead).toBe(false);
 
     const replay = buildReplay(SEED, t.log, t.s);
-    const again = runReplay(parseReplay(JSON.parse(JSON.stringify(replay))), createRapierWorld());
+    const again = runReplay(
+      parseReplay(JSON.parse(JSON.stringify(replay))),
+      createRapierWorld(),
+      ARENA,
+    );
     expect(hashSimState(again)).toBe(hashSimState(t.s));
     expect(hashSimState(t.s)).toBe(DUMMY_KILL_HASH);
   });

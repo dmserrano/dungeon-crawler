@@ -1,8 +1,9 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { type InputFrame, NO_INPUT } from "../src/sim/input-frame";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
-import { PLAYER_RADIUS, ROOM_HEIGHT, ROOM_WIDTH } from "../src/sim/room";
+import { PLAYER_RADIUS } from "../src/sim/room";
 import { createSimState, hashSimState, step } from "../src/sim/step";
+import { ARENA, ROOM_HEIGHT, ROOM_WIDTH } from "./arena";
 
 const hold = (n: number, f: Partial<InputFrame>): InputFrame[] =>
   Array.from({ length: n }, () => ({ ...NO_INPUT, ...f }));
@@ -19,7 +20,7 @@ const LOG: InputFrame[] = [
 const EXPECTED_HASH = "290f1edc";
 
 function run(seed: number, log: InputFrame[]) {
-  let s = createSimState(createRapierWorld(), seed);
+  let s = createSimState(createRapierWorld(), seed, ARENA);
   for (const f of log) s = step(s, f);
   return s;
 }
