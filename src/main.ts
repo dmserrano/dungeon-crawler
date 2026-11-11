@@ -120,6 +120,7 @@ async function main() {
       entityViews(cur),
       slash.view(alpha, cur.player.frozen > 0),
       transitionFade(cur.transition),
+      cur.locked,
     );
     const rate = fps.frame(now);
     if (renderer.debugOn) {

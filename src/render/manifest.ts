@@ -17,6 +17,11 @@ export const manifestSchema = z.object({
     ranged: z.number().int().nonnegative(),
     dummy: z.number().int().nonnegative(),
     projectile: z.number().int().nonnegative(),
+    /** Two-tile wide door arch, left and right halves, open and shut (locked while a room fights). */
+    doorOpenLeft: z.number().int().nonnegative(),
+    doorOpenRight: z.number().int().nonnegative(),
+    doorLockedLeft: z.number().int().nonnegative(),
+    doorLockedRight: z.number().int().nonnegative(),
   }),
   /** Every file under `assets/` (paths relative to `assets/`). */
   files: z.array(z.string()),

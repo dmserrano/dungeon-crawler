@@ -11,7 +11,11 @@
     "chaser": 110,
     "ranged": 84,
     "dummy": 65,
-    "projectile": 103
+    "projectile": 103,
+    "doorOpenLeft": 10,
+    "doorOpenRight": 11,
+    "doorLockedLeft": 46,
+    "doorLockedRight": 47
   },
   "files": [
     "tiny-dungeon/Tilemap/tilemap.png",
