@@ -5,3 +5,8 @@
 /.github/ @dmserrano
 /SPEC.md @dmserrano
 /docs/adr/ @dmserrano
+/package.json @dmserrano
+/pnpm-lock.yaml @dmserrano
+/pnpm-workspace.yaml @dmserrano
+/scripts/ @dmserrano
+/AGENTS.md @dmserrano

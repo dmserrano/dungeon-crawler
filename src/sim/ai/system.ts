@@ -1,6 +1,7 @@
 import { isFrozen, type SimEvent } from "../combat";
 import { CHASER_DATA, RANGED_DATA } from "../data/enemies";
 import { createEntity, type EcsWorld, type Entity, query, removeComponent } from "../ecs/world";
+import { findPath, type NavGrid } from "../pathfinding";
 import type { BodyId, PhysicsWorld, Vec2 } from "../physics/physics-world";
 import { fireProjectile } from "../projectile";
 import { nextAiState } from "./chaser";
@@ -21,17 +22,25 @@ export function spawnEnemy(
   y: number,
 ): Entity {
   const data = kind === "chaser" ? D : R;
-  return createEntity(ecs, {
-    enemy: true,
-    ...(kind === "ranged" ? { ranged: true } : {}),
-    body: world.createDynamicCircle(x, y, data.radius),
-    position: { x, y },
-    velocity: { x: 0, y: 0 },
-    health: { hp: data.hp, max: data.hp, iframeTicks: data.invulnTicks },
-    radius: data.radius,
-    staggerTicks: data.staggerTicks,
-    ai: newAiMemory(),
-  });
+  return staggerPath(
+    createEntity(ecs, {
+      enemy: true,
+      ...(kind === "ranged" ? { ranged: true } : {}),
+      body: world.createDynamicCircle(x, y, data.radius),
+      position: { x, y },
+      velocity: { x: 0, y: 0 },
+      health: { hp: data.hp, max: data.hp, iframeTicks: data.invulnTicks },
+      radius: data.radius,
+      staggerTicks: data.staggerTicks,
+      ai: newAiMemory(),
+    }),
+  );
+}
+
+/** Spread path recomputes over the interval so enemies do not all run A* on the same tick. */
+function staggerPath(e: Entity): Entity {
+  if (e.ai) e.ai.pathT = (e.id % PATH_INTERVAL) + 1;
+  return e;
 }
 
 const ZERO: Vec2 = { x: 0, y: 0 };
@@ -94,12 +103,63 @@ export function steer(
   return desired;
 }
 
+/** Ticks between path recomputes per enemy. */
+const PATH_INTERVAL = 20;
+/** Longest path (in cells) an enemy will follow; bounds A* cost per tick. */
+const PATH_MAX_STEPS = 48;
+/** A waypoint counts as reached within this distance (px). */
+const WAYPOINT_REACH = 8;
+
+/**
+ * Direction to head for when approaching the player (ADR 0008): straight at them while a raycast
+ * is clear, otherwise toward the next waypoint of the cached A* path (recomputed every
+ * `PATH_INTERVAL` ticks). With no path, the direct direction is returned and `steer` falls back to
+ * wall avoidance.
+ */
+function approachDir(
+  e: Entity & Required<Pick<Entity, "position" | "radius" | "ai" | "body">>,
+  target: Vec2,
+  toPlayer: Vec2,
+  nav: NavGrid,
+  world: PhysicsWorld,
+  ignore: ReadonlySet<BodyId>,
+): Vec2 {
+  const ai = e.ai;
+  const dist = Math.hypot(target.x - e.position.x, target.y - e.position.y);
+  const origin = {
+    x: e.position.x + toPlayer.x * (e.radius + 0.1),
+    y: e.position.y + toPlayer.y * (e.radius + 0.1),
+  };
+  const hit = toPlayer === ZERO ? null : world.raycast(origin, toPlayer, dist);
+  if (!hit || ignore.has(hit.body) || hit.body === e.body) {
+    ai.path = [];
+    return toPlayer;
+  }
+  if (--ai.pathT <= 0) {
+    ai.pathT = PATH_INTERVAL;
+    ai.path = findPath(nav, e.position, target, PATH_MAX_STEPS) ?? [];
+  }
+  while (ai.path.length > 0) {
+    const w = ai.path[0] as Vec2;
+    if (Math.hypot(w.x - e.position.x, w.y - e.position.y) > WAYPOINT_REACH) {
+      return normalize({ x: w.x - e.position.x, y: w.y - e.position.y });
+    }
+    ai.path.shift();
+  }
+  return toPlayer;
+}
+
 /**
  * Runs every enemy's state machine and applies its movement. A hit (pending knockback or
  * stagger from the combat systems) interrupts into stagger. Contact damage is queued as a
  * damage event only while lunging, at most once per lunge, and never into i-frames.
  */
-export function aiSystem(ecs: EcsWorld, world: PhysicsWorld, events: SimEvent[]): void {
+export function aiSystem(
+  ecs: EcsWorld,
+  world: PhysicsWorld,
+  events: SimEvent[],
+  nav: NavGrid,
+): void {
   let player: (Entity & Required<Pick<Entity, "position" | "radius">>) | undefined;
   for (const p of query(ecs, "player", "position", "radius")) player = p;
   const enemies = [...query(ecs, "enemy", "ai", "body", "position", "radius", "health")].sort(
@@ -127,7 +187,8 @@ export function aiSystem(ecs: EcsWorld, world: PhysicsWorld, events: SimEvent[])
     e.ai = ai;
     if (frozen) continue; // hitstop holds the body; the state already switched to stagger
     if (e.ranged) {
-      rangedMotion(ecs, world, e, ai.state, ai.dir, dist, sense.toPlayer, enemies, ignore);
+      const around = player ? { nav, target: player.position } : undefined;
+      rangedMotion(ecs, world, e, ai.state, ai.dir, dist, sense.toPlayer, enemies, ignore, around);
       continue;
     }
 
@@ -138,7 +199,10 @@ export function aiSystem(ecs: EcsWorld, world: PhysicsWorld, events: SimEvent[])
         world.setVelocity(e.body, 0, 0);
         break;
       case "chase": {
-        const dir = steer(e, e.body, sense.toPlayer, enemies, world, ignore);
+        const goal = player
+          ? approachDir(e, player.position, sense.toPlayer, nav, world, ignore)
+          : sense.toPlayer;
+        const dir = steer(e, e.body, goal, enemies, world, ignore);
         world.setVelocity(e.body, dir.x * D.speed, dir.y * D.speed);
         break;
       }
@@ -180,13 +244,14 @@ export function aiSystem(ecs: EcsWorld, world: PhysicsWorld, events: SimEvent[])
 function rangedMotion(
   ecs: EcsWorld,
   world: PhysicsWorld,
-  e: Entity & Required<Pick<Entity, "body" | "position" | "radius">>,
+  e: Entity & Required<Pick<Entity, "body" | "position" | "radius" | "ai">>,
   state: string,
   lockedDir: Vec2,
   dist: number,
   toPlayer: Vec2,
   enemies: readonly Entity[],
   ignore: ReadonlySet<BodyId>,
+  around: { nav: NavGrid; target: Vec2 } | undefined,
 ): void {
   switch (state) {
     case "kite": {
@@ -194,7 +259,9 @@ function rangedMotion(
         dist < R.keepDistance.min
           ? { x: -toPlayer.x, y: -toPlayer.y }
           : dist > R.keepDistance.max
-            ? toPlayer
+            ? around
+              ? approachDir(e, around.target, toPlayer, around.nav, world, ignore)
+              : toPlayer
             : ZERO;
       const dir = want === ZERO ? ZERO : steer(e, e.body, want, enemies, world, ignore);
       world.setVelocity(e.body, dir.x * R.speed, dir.y * R.speed);
