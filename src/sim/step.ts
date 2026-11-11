@@ -61,6 +61,8 @@ export interface SimState {
   readonly player: PlayerSnapshot;
   /** Event queue: damage is consumed within the tick; death notices last until the next tick. */
   readonly events: SimEvent[];
+  /** True once every enemy is dead ("room cleared"). Not part of the state hash. */
+  readonly cleared: boolean;
 }
 
 /** Render-facing view of a non-player entity. */
@@ -122,6 +124,12 @@ function playerEntity(ecs: EcsWorld): Entity {
   throw new Error("no player entity");
 }
 
+/** Enemies and the dummy are the non-player entities with health (projectiles have none). */
+function noEnemiesLeft(ecs: EcsWorld): boolean {
+  for (const e of query(ecs, "health")) if (!e.player) return false;
+  return true;
+}
+
 /** Pull physics positions/velocities into components. */
 function syncSystem(ecs: EcsWorld, world: PhysicsWorld): void {
   for (const e of query(ecs, "body")) {
@@ -159,6 +167,7 @@ export function createSimState(world: PhysicsWorld, seed: number): SimState {
   syncSystem(ecs, world);
   return {
     events: [],
+    cleared: false,
     tick: 0,
     seed,
     rng: createRng(seed),
@@ -245,7 +254,10 @@ export function step(state: SimState, input: InputFrame): SimState {
   if (state.player.dead) return state; // player death stops the sim
   const { world, ecs, events } = state;
   // Last tick's death notices go; queued damage (e.g. from hazards or tests) stays for this tick.
-  for (let i = events.length - 1; i >= 0; i--) if (events[i]?.kind === "death") events.splice(i, 1);
+  for (let i = events.length - 1; i >= 0; i--) {
+    const kind = events[i]?.kind;
+    if (kind === "death" || kind === "cleared") events.splice(i, 1);
+  }
   inputSystem(ecs, input);
   releaseSystem(ecs, world);
   movementSystem(ecs, world);
@@ -258,7 +270,9 @@ export function step(state: SimState, input: InputFrame): SimState {
   world.step(TICK_DT);
   world.drainCollisionEvents(); // nothing consumes events yet; keep the queue empty
   syncSystem(ecs, world);
-  return { ...state, tick: state.tick + 1, player: snapshotOf(playerEntity(ecs)) };
+  const cleared = state.cleared || noEnemiesLeft(ecs);
+  if (cleared && !state.cleared) events.push({ kind: "cleared" });
+  return { ...state, cleared, tick: state.tick + 1, player: snapshotOf(playerEntity(ecs)) };
 }
 
 /**
