@@ -5,7 +5,7 @@ import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world"
 import { buildReplay, parseReplay, runReplay } from "../src/sim/replay";
 import { PLAYER_RADIUS } from "../src/sim/room";
 import { createSimState, hashSimState, type SimState, step } from "../src/sim/step";
-import { ARENA, PLAYER_START, ROOM_WIDTH } from "./arena";
+import { ARENA, ARENA_FLOOR, ARENA_ROOMS, PLAYER_START, ROOM_WIDTH } from "./arena";
 
 const { distance, ticks: DASH_TICKS, iframeTicks, cooldownTicks } = PLAYER_DATA.dash;
 const hold = (n: number, f: Partial<InputFrame>): InputFrame[] =>
@@ -126,16 +126,17 @@ describe("dash", () => {
     expect(s.player.x).toBeGreaterThan(ROOM_WIDTH - PLAYER_RADIUS - 2);
 
     // Deterministic, and the replay round-trips through the v2 format.
-    const replay = buildReplay(SEED, log, s);
-    expect(replay.version).toBe(2);
+    const replay = buildReplay(ARENA_FLOOR.id, SEED, log, s);
+    expect(replay.version).toBe(3);
     const again = runReplay(
       parseReplay(JSON.parse(JSON.stringify(replay))),
       createRapierWorld(),
-      ARENA,
+      ARENA_FLOOR,
+      ARENA_ROOMS,
     );
     expect(hashSimState(again)).toBe(hashSimState(s));
     expect(hashSimState(s)).toBe(EXPECTED_HASH);
   });
 });
 
-const EXPECTED_HASH = "18f48f00";
+const EXPECTED_HASH = "ab9ccaf0";

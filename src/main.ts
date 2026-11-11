@@ -10,7 +10,7 @@ import {
   describeProjectiles,
 } from "./debug/stats";
 import { createFixedLoop } from "./game/loop";
-import { loadRoom, loadRoomMap } from "./game/rooms";
+import { loadFloor, loadRoom, loadRoomMap } from "./game/rooms";
 import { seedFromSearch } from "./game/seed";
 import { createKeyboardInput } from "./input/keyboard";
 import { createPointerInput } from "./input/pointer";
@@ -19,6 +19,7 @@ import { createSlashTracker } from "./render/slash-tracker";
 import type { InputFrame } from "./sim/input-frame";
 import { createRapierWorld, initPhysics } from "./sim/physics/rapier-world";
 import { SIM_VERSION } from "./sim/replay";
+import { transitionFade } from "./sim/run";
 import { createSimState, entityViews, step } from "./sim/step";
 
 async function main() {
@@ -30,13 +31,14 @@ async function main() {
   const seed = seedFromSearch(window.location.search);
   const log = createLogger({ capacity: 500 });
   installErrorCapture(window, log);
-  const recorder = createRecorder();
-  const room = loadRoom("test-arena");
-  let cur = createSimState(world, seed, room);
-  log.info("session start", { seed });
+  const floor = loadFloor("test-arena");
+  const recorder = createRecorder(floor.id);
+  const room = loadRoom(floor.start);
+  let cur = createSimState(world, seed, room, { roomId: floor.start, rooms: loadRoom });
+  log.info("session start", { seed, floor: floor.id });
   let prev = cur;
   const keys = createKeyboardInput(window);
-  const renderer = await createRenderer(host, world, room, loadRoomMap("test-arena"));
+  const renderer = await createRenderer(host, world, room, loadRoomMap(floor.start));
   const pointer = createPointerInput(window, renderer.toRoom);
   const fps = createFpsMeter();
   const slash = createSlashTracker();
@@ -99,6 +101,10 @@ async function main() {
     prev = cur;
     cur = step(cur, frame);
     slash.onTick(frame.aim, prev.player, cur.player);
+    if (cur.roomId !== prev.roomId) {
+      renderer.setRoom(cur.room, loadRoomMap(cur.roomId));
+      log.info("entered room", { room: cur.roomId, tick: cur.tick });
+    }
     for (const ev of cur.events) {
       if (ev.kind === "cleared") log.info("room cleared", { tick: cur.tick });
     }
@@ -113,6 +119,7 @@ async function main() {
       alpha,
       entityViews(cur),
       slash.view(alpha, cur.player.frozen > 0),
+      transitionFade(cur.transition),
     );
     const rate = fps.frame(now);
     if (renderer.debugOn) {

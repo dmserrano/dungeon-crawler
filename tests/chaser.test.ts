@@ -13,7 +13,7 @@ import type { PhysicsWorld } from "../src/sim/physics/physics-world";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
 import { buildReplay, parseReplay, runReplay } from "../src/sim/replay";
 import { createSimState, entityViews, hashSimState, type SimState, step } from "../src/sim/step";
-import { ARENA, CHASER_STARTS } from "./arena";
+import { ARENA, ARENA_FLOOR, ARENA_ROOMS, CHASER_STARTS } from "./arena";
 
 const D = CHASER_DATA;
 const SEED = 21;
@@ -257,11 +257,12 @@ function wake(t: Session) {
 
 /** Round-trips the log through the replay format and checks the hash. */
 function expectReplay(t: Session, hash: string) {
-  const replay = buildReplay(SEED, t.log, t.s);
+  const replay = buildReplay(ARENA_FLOOR.id, SEED, t.log, t.s);
   const again = runReplay(
     parseReplay(JSON.parse(JSON.stringify(replay))),
     createRapierWorld(),
-    ARENA,
+    ARENA_FLOOR,
+    ARENA_ROOMS,
   );
   expect(hashSimState(again)).toBe(hashSimState(t.s));
   expect(hashSimState(t.s)).toBe(hash);
@@ -378,6 +379,6 @@ describe("chaser scenarios", () => {
 
 const POOL = RANGED_DATA.projectile.poolSize;
 const DASH_TICKS = PLAYER_DATA.dash.ticks;
-const CONTACT_HASH = "1305e3d1";
-const DASH_HASH = "4b126430";
-const KILL_HASH = "b67b8bc9";
+const CONTACT_HASH = "8f823f39";
+const DASH_HASH = "d92e4658";
+const KILL_HASH = "07f0e709";

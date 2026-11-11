@@ -1,9 +1,15 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parseRoom } from "../sim/data/room";
+import { type Floor, parseFloor } from "../sim/floor";
 import type { Room } from "../sim/room";
 
 const ROOMS_DIR = join(import.meta.dirname, "../../data/rooms");
+const FLOORS_DIR = join(import.meta.dirname, "../../data/floors");
+
+export function loadFloorByName(id: string): Floor {
+  return parseFloor(JSON.parse(readFileSync(join(FLOORS_DIR, `${id}.json`), "utf8")), id);
+}
 
 /** Read and parse one `.tmj` file (Node only; the sim itself does no file I/O). */
 export function loadRoomFile(path: string): Room {

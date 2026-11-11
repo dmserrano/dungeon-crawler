@@ -17,7 +17,7 @@ const LOG: InputFrame[] = [
 
 // Re-recorded for sim v4: the room also holds two chasers, which stay idle here because the
 // player never comes within their aggro range (movement is unchanged).
-const EXPECTED_HASH = "290f1edc";
+const EXPECTED_HASH = "1523ceb4";
 
 function run(seed: number, log: InputFrame[]) {
   let s = createSimState(createRapierWorld(), seed, ARENA);

@@ -13,7 +13,8 @@ await initPhysics();
 const seed = Number(process.argv[2] ?? 7);
 const mode = process.argv[3] ?? "clear";
 const out = process.argv[4];
-const ARENA = loadRoomByName("test-arena");
+const FLOOR = "test-arena"; // data/floors/test-arena.json: a floor with only the arena
+const ARENA = loadRoomByName(FLOOR);
 let s = createSimState(createRapierWorld(), seed, ARENA);
 const frames: InputFrame[] = [];
 for (let t = 0; t < 4000 && !s.cleared && !s.player.dead; t++) {
@@ -53,4 +54,4 @@ console.log({
   hp: s.player.hp,
   left: entityViews(s).filter((v) => !v.projectile).length,
 });
-if (out) writeFileSync(out, JSON.stringify(buildReplay(seed, frames, s)));
+if (out) writeFileSync(out, JSON.stringify(buildReplay(FLOOR, seed, frames, s)));

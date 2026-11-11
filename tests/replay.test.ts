@@ -11,7 +11,7 @@ import {
   SIM_VERSION,
 } from "../src/sim/replay";
 import { createSimState, hashSimState, step } from "../src/sim/step";
-import { ARENA } from "./arena";
+import { ARENA, ARENA_FLOOR, ARENA_ROOMS } from "./arena";
 
 const hold = (n: number, f: Partial<InputFrame>): InputFrame[] =>
   Array.from({ length: n }, () => ({ ...NO_INPUT, ...f }));
@@ -23,7 +23,7 @@ const LOG: InputFrame[] = [
   ...hold(30, {}),
 ];
 const SEED = 1234;
-const SKELETON_HASH = "290f1edc";
+const SKELETON_HASH = "1523ceb4";
 
 describe("input encoding", () => {
   it("round-trips losslessly, including aim and buttons", () => {
@@ -63,8 +63,9 @@ describe("input encoding", () => {
 
 describe("parseReplay", () => {
   const valid: Replay = {
-    version: 2,
+    version: 3,
     simVersion: SIM_VERSION,
+    floor: "test-arena",
     seed: 7,
     ticks: 4,
     inputs: [[0, 0, 4]],
@@ -80,9 +81,16 @@ describe("parseReplay", () => {
     expect(() => parseReplay(v1)).toThrow(/format changed/);
   });
 
+  it("rejects version 2 files saying the format changed", () => {
+    const { floor: _floor, ...rest } = valid;
+    expect(() => parseReplay({ ...rest, version: 2 })).toThrow(/format changed/);
+  });
+
   it.each([
     ["non-object", 42],
-    ["unknown version", { ...valid, version: 3 }],
+    ["unknown version", { ...valid, version: 4 }],
+    ["missing floor", { ...valid, floor: undefined }],
+    ["floor that is a path", { ...valid, floor: "../x" }],
     ["old pair-shaped run", { ...valid, inputs: [[0, 4]] }],
     ["aim out of range", { ...valid, inputs: [[0, 256, 4]] }],
     ["negative aim", { ...valid, inputs: [[0, -1, 4]] }],
@@ -104,31 +112,36 @@ describe("runReplay and recorder", () => {
 
   it("re-runs the walking-skeleton log to the recorded hash", () => {
     const replay: Replay = {
-      version: 2,
+      version: 3,
       simVersion: SIM_VERSION,
+      floor: ARENA_FLOOR.id,
       seed: SEED,
       ticks: LOG.length,
       inputs: encodeInputs(LOG),
       finalHash: SKELETON_HASH,
     };
-    const final = runReplay(replay, createRapierWorld(), ARENA);
+    const final = runReplay(replay, createRapierWorld(), ARENA_FLOOR, ARENA_ROOMS);
     expect(hashSimState(final)).toBe(SKELETON_HASH);
   });
 
   it("throws when the final hash does not match", () => {
     const replay: Replay = {
-      version: 2,
+      version: 3,
       simVersion: SIM_VERSION,
+      floor: ARENA_FLOOR.id,
       seed: SEED,
       ticks: LOG.length,
       inputs: encodeInputs(LOG),
       finalHash: "deadbeef",
     };
-    expect(() => runReplay(replay, createRapierWorld(), ARENA)).toThrow(/hash/i);
+    expect(() => runReplay(replay, createRapierWorld(), ARENA_FLOOR, ARENA_ROOMS)).toThrow(/hash/i);
+    expect(() =>
+      runReplay(replay, createRapierWorld(), { ...ARENA_FLOOR, id: "other" }, ARENA_ROOMS),
+    ).toThrow(/floor/i);
   });
 
   it("a recorded session re-runs to its own finalHash", () => {
-    const rec = createRecorder();
+    const rec = createRecorder(ARENA_FLOOR.id);
     let s = createSimState(createRapierWorld(), SEED, ARENA);
     for (const f of LOG) {
       rec.record(f);
@@ -140,7 +153,8 @@ describe("runReplay and recorder", () => {
     const again = runReplay(
       parseReplay(JSON.parse(JSON.stringify(replay))),
       createRapierWorld(),
-      ARENA,
+      ARENA_FLOOR,
+      ARENA_ROOMS,
     );
     expect(hashSimState(again)).toBe(replay.finalHash);
   });

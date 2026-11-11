@@ -27,6 +27,11 @@ function release(world: PhysicsWorld, p: Entity & Required<Pick<Entity, "project
   world.setPosition(p.body, PARK.x, PARK.y);
 }
 
+/** Return every in-flight projectile to the pool (room transitions discard them). */
+export function releaseAllProjectiles(ecs: EcsWorld, world: PhysicsWorld): void {
+  for (const p of query(ecs, "projectile", "body")) if (p.projectile.active) release(world, p);
+}
+
 /** Number of projectiles currently in flight. */
 export function activeProjectiles(ecs: EcsWorld): number {
   let n = 0;

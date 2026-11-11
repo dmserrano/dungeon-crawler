@@ -1,7 +1,20 @@
 /// <reference types="vite/client" />
 import { type RoomMap, roomMapSchema } from "../../data/schemas/room";
 import { parseRoom } from "../sim/data/room";
+import { type Floor, parseFloor } from "../sim/floor";
 import type { Room } from "../sim/room";
+
+const floorFiles = import.meta.glob<string>("../../data/floors/*.json", {
+  eager: true,
+  query: "?raw",
+  import: "default",
+});
+
+export function loadFloor(id: string): Floor {
+  const text = floorFiles[`../../data/floors/${id}.json`];
+  if (text === undefined) throw new Error(`unknown floor "${id}"`);
+  return parseFloor(JSON.parse(text), id);
+}
 
 /** All `data/rooms/*.tmj` as raw text, bundled at build time. */
 const files = import.meta.glob<string>("../../data/rooms/*.tmj", {

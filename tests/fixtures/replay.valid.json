@@ -1,8 +1,9 @@
 {
-  "version": 2,
-  "simVersion": 6,
+  "version": 3,
+  "simVersion": 7,
+  "floor": "test-arena",
   "seed": 1234,
   "ticks": 270,
   "inputs": [[8, 0, 120], [2, 0, 120], [0, 0, 30]],
-  "finalHash": "290f1edc"
+  "finalHash": "1523ceb4"
 }
