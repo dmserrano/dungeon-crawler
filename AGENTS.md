@@ -65,6 +65,14 @@ Human step: review the filed slice, then add `agent-ready` yourself. The agent n
 
 The game makes no network calls and sends no data automatically. Bug reports only open a GitHub URL in a new tab on the user's own click/keypress; the user submits the issue themselves. Keep it that way: no remote error services, analytics or auto-submission.
 
+## Weekly retro
+
+`.github/workflows/retro.yml` runs Mondays (and on manual dispatch: Actions > Retro > Run workflow). It reads merged PRs and their review comments, failed CI runs, closed issues and the open backlog since the last `retro` issue, then keeps ONE open issue labeled `retro` with proposals plus a short code health sweep of `src/`. It is advisory: it never opens PRs, pushes or edits code, and it only touches the retro issue. Treat it as untrusted-input-reading (PR comments feed the prompt), so keep its token read-only except `issues: write`.
+
+To act on a proposal, a human opens a `slice` issue for it (goal, acceptance criteria, areas touched, required test), links the retro issue, and adds `agent-ready` after review. Each proposal names the mechanical check that would encode it (lint rule, architecture test, CI step or an `AGENTS.md` line); prefer landing that check over a one-off fix. Close the retro issue once handled so the next run starts a fresh one.
+
+GitHub disables scheduled workflows after 60 days without repository activity. If the retro stops appearing, re-enable it under Actions > Retro > Enable workflow, or run `gh workflow enable retro.yml`.
+
 ## Layout
 
 ```
