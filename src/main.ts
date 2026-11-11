@@ -3,7 +3,12 @@ import { downloadText } from "./debug/download";
 import { installErrorCapture } from "./debug/error-capture";
 import { createLogger } from "./debug/logger";
 import { createRecorder } from "./debug/recorder";
-import { createFpsMeter, describeEnemies, describeProjectiles } from "./debug/stats";
+import {
+  createFpsMeter,
+  describeCombat,
+  describeEnemies,
+  describeProjectiles,
+} from "./debug/stats";
 import { createFixedLoop } from "./game/loop";
 import { seedFromSearch } from "./game/seed";
 import { createKeyboardInput } from "./input/keyboard";
@@ -70,6 +75,12 @@ async function main() {
     } else if (e.code === "F3") {
       e.preventDefault();
       reportBug();
+    } else if (e.code === "F4") {
+      e.preventDefault();
+      loop.setPaused(!loop.paused);
+      log.info(loop.paused ? "paused" : "resumed", { tick: cur.tick });
+    } else if (e.code === "Period" && !e.repeat) {
+      loop.stepOnce(); // no-op unless paused
     }
   });
 
@@ -86,6 +97,9 @@ async function main() {
     prev = cur;
     cur = step(cur, frame);
     slash.onTick(frame.aim, prev.player, cur.player);
+    for (const ev of cur.events) {
+      if (ev.kind === "cleared") log.info("room cleared", { tick: cur.tick });
+    }
     if (cur.player.dead) log.info("player died", { tick: cur.tick });
   });
 
@@ -103,7 +117,7 @@ async function main() {
       const p = cur.player;
       renderer.setStats(
         `FPS ${rate.toFixed(0)}  entities ${world.bodyCount()}  tick ${cur.tick}\n` +
-          `HP ${p.hp}/${p.maxHp}  attack ${p.attack ?? "-"}${p.dead ? "  DEAD" : ""}\n` +
+          `${describeCombat({ ...p, cleared: cur.cleared, paused: loop.paused })}\n` +
           `${describeProjectiles(entityViews(cur))}\n` +
           describeEnemies(entityViews(cur)),
       );

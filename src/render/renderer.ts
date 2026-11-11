@@ -42,6 +42,35 @@ function drawSlash(g: Graphics, slash: SlashView | null): void {
     .fill({ color: SLASH_COLOR, alpha });
 }
 
+const HITBOX_COLOR = 0xff9f1c; // active attack sensors and enemy projectiles
+const HURTBOX_COLOR = 0x35c9ff; // bodies that can take damage (player, enemies, dummy)
+
+/** Debug-only: hitboxes (orange) and hurtboxes (cyan). Reads render state; adds no sim state. */
+function drawCombatBoxes(
+  g: Graphics,
+  cur: PlayerSnapshot,
+  at: { x: number; y: number },
+  others: EntityView[],
+  slash: SlashView | null,
+): void {
+  const width = 1.5 / SCALE;
+  g.circle(at.x, at.y, PLAYER_RADIUS).stroke({ width, color: HURTBOX_COLOR });
+  if (slash && cur.attack === "active") {
+    const dir = aimToDir(slash.aim);
+    const { reach, hitRadius } = PLAYER_DATA.attack;
+    g.circle(at.x + dir.x * reach, at.y + dir.y * reach, hitRadius).stroke({
+      width,
+      color: HITBOX_COLOR,
+    });
+  }
+  for (const o of others) {
+    g.circle(o.x, o.y, o.radius).stroke({
+      width,
+      color: o.projectile ? HITBOX_COLOR : HURTBOX_COLOR,
+    });
+  }
+}
+
 export interface Renderer {
   draw(
     prev: PlayerSnapshot,
@@ -133,6 +162,7 @@ export async function createRenderer(host: HTMLElement, world: PhysicsWorld): Pr
           else debug.circle(s.x, s.y, s.r);
           debug.stroke({ width: 1 / SCALE, color: s.dynamic ? 0x00ff66 : 0xff3366 });
         }
+        drawCombatBoxes(debug, cur, player.position, others, slash);
       }
       app.render();
     },

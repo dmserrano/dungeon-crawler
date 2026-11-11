@@ -23,7 +23,9 @@ export type SimEvent =
       /** Ticks both parties freeze for. */
       hitstop: number;
     }
-  | { kind: "death"; id: number };
+  | { kind: "death"; id: number }
+  /** Every enemy and the dummy is dead. Emitted once, lasts until the next tick. */
+  | { kind: "cleared" };
 
 export type AttackPhase = "windup" | "active" | "recovery";
 
