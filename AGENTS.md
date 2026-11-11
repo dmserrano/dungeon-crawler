@@ -58,6 +58,14 @@ Human step: review the filed slice, then add `agent-ready` yourself. The agent n
 
 **Trust decision:** the workflow runs only when a maintainer applies the label, never automatically on issues opened by outsiders, and `allowed_non_write_users` must stay unset. Issue bodies, logs and replays are untrusted input to an agent holding a write token (prompt injection). Automatic triage of outside reports needs its own ADR.
 
+## Agentic PR review (opt-in, advisory)
+
+Review never runs automatically. To request one on a non-draft PR from this repo, a maintainer (write access) either applies the label `review` or comments `@claude review`. `.github/workflows/claude-review.yml` then runs the `code-review` plugin and posts inline comments. Forks, drafts and users without write access are ignored; a newer request on the same PR cancels the running one.
+
+Review comments are **advisory**: the job is not a required check and never approves or requests changes. A recurring comment should become a lint rule, architecture test or `AGENTS.md` line. The plugin skips a PR it has already commented on, so to re-review after new commits, delete its earlier comments first. `claude.yml` ignores comments containing `@claude review`, so the two workflows never fire on the same comment. Usage is tracked on PRD #5 until decision 3 (review budget) is made.
+
+One-time setup: `gh label create review --description "Request an AI code review (advisory, opt-in)" --color 5319e7`
+
 ## Telemetry
 
 The game makes no network calls and sends no data automatically. Bug reports only open a GitHub URL in a new tab on the user's own click/keypress; the user submits the issue themselves. Keep it that way: no remote error services, analytics or auto-submission.
