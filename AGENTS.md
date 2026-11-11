@@ -36,6 +36,12 @@ pnpm format          # biome check --write
 - Commit messages: short imperative subject. No co-author trailers.
 - New or changed workflow steps must pin every action by full commit SHA with a trailing version comment (`uses: owner/repo@<40-char-sha> # v1.2.3`); never a mutable tag. Resolve the SHA from the upstream release tag.
 
+## Code owner review
+
+`.github/CODEOWNERS` covers everything that decides what CI installs and runs: `.github/`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `scripts/` and `AGENTS.md`, plus the sim, schemas, `SPEC.md` and ADRs. The ruleset "main protection" has "Require review from Code Owners" on, with required approvals still 0.
+
+Trade-off: GitHub does not let an author approve their own PR, so a PR the owner authors that touches these paths cannot satisfy the code owner rule. Those PRs merge through the ruleset's admin bypass in pull request mode (CI still runs; the bypass only skips the review requirement). PRs from agents or other contributors need the owner's approval. If the setting is ever turned off, CODEOWNERS is advisory again and this section should be updated.
+
 ## Performance budget
 
 Sim budget: `step()` with 200 dynamic bodies must stay under **4 ms per tick** (a 60 Hz frame is 16.6 ms; the rest is for render and the browser). `pnpm bench` measures it. CI (`bench.yml`) compares a PR with its merge-base and warns on a regression over 25% (shared runners are noisy); it never fails. `SPEC.md` rule 8 is unchanged.
