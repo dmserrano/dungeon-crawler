@@ -2,8 +2,9 @@ import { beforeAll, describe, expect, it } from "vitest";
 import enemiesJson from "../data/enemies.json";
 import { enemiesDataSchema } from "../data/schemas/enemies";
 import { describeEnemies } from "../src/debug/stats";
-import { type AiMemory, type AiSense, newAiMemory, nextAiState } from "../src/sim/ai/chaser";
-import { spawnChaser, steer } from "../src/sim/ai/system";
+import { nextAiState } from "../src/sim/ai/chaser";
+import { type AiMemory, type AiSense, newAiMemory } from "../src/sim/ai/memory";
+import { spawnEnemy, steer } from "../src/sim/ai/system";
 import { CHASER_DATA, parseEnemiesData, RANGED_DATA } from "../src/sim/data/enemies";
 import { PLAYER_DATA } from "../src/sim/data/player";
 import { entitiesById } from "../src/sim/ecs/world";
@@ -293,8 +294,8 @@ describe("chaser scenarios", () => {
   it("separate softly from each other", () => {
     const world = createRapierWorld();
     const s = createSimState(world, SEED, ARENA);
-    const a = spawnChaser(s.ecs, world, 220, 150);
-    const b = spawnChaser(s.ecs, world, 222, 150);
+    const a = spawnEnemy(s.ecs, world, "chaser", 220, 150);
+    const b = spawnEnemy(s.ecs, world, "chaser", 222, 150);
     let st = s;
     const gap = () =>
       Math.hypot(

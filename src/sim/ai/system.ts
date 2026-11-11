@@ -4,23 +4,34 @@ import { createEntity, type EcsWorld, type Entity, query, removeComponent } from
 import { findPath, type NavGrid } from "../pathfinding";
 import type { BodyId, PhysicsWorld, Vec2 } from "../physics/physics-world";
 import { fireProjectile } from "../projectile";
-import { type AiSense, newAiMemory, nextAiState } from "./chaser";
+import { nextAiState } from "./chaser";
+import { type AiSense, newAiMemory } from "./memory";
 import { nextRangedState } from "./ranged";
 
 const D = CHASER_DATA;
 const R = RANGED_DATA;
+/** Separation tuning is shared: the ranged data has none, so ranged enemies use the chaser values. */
+const SEPARATION = { radius: D.separationRadius, weight: D.separationWeight };
 
-/** Spawn a chaser at a fixed position. Fully described by `data/enemies.json`. */
-export function spawnChaser(ecs: EcsWorld, world: PhysicsWorld, x: number, y: number): Entity {
+/** Spawn an enemy at a fixed position. Fully described by `data/enemies.json`. */
+export function spawnEnemy(
+  ecs: EcsWorld,
+  world: PhysicsWorld,
+  kind: "chaser" | "ranged",
+  x: number,
+  y: number,
+): Entity {
+  const data = kind === "chaser" ? D : R;
   return staggerPath(
     createEntity(ecs, {
       enemy: true,
-      body: world.createDynamicCircle(x, y, D.radius),
+      ...(kind === "ranged" ? { ranged: true } : {}),
+      body: world.createDynamicCircle(x, y, data.radius),
       position: { x, y },
       velocity: { x: 0, y: 0 },
-      health: { hp: D.hp, max: D.hp, iframeTicks: D.invulnTicks },
-      radius: D.radius,
-      staggerTicks: D.staggerTicks,
+      health: { hp: data.hp, max: data.hp, iframeTicks: data.invulnTicks },
+      radius: data.radius,
+      staggerTicks: data.staggerTicks,
       ai: newAiMemory(),
     }),
   );
@@ -30,23 +41,6 @@ export function spawnChaser(ecs: EcsWorld, world: PhysicsWorld, x: number, y: nu
 function staggerPath(e: Entity): Entity {
   if (e.ai) e.ai.pathT = (e.id % PATH_INTERVAL) + 1;
   return e;
-}
-
-/** Spawn the ranged enemy at a fixed position. Fully described by `data/enemies.json`. */
-export function spawnRanged(ecs: EcsWorld, world: PhysicsWorld, x: number, y: number): Entity {
-  return staggerPath(
-    createEntity(ecs, {
-      enemy: true,
-      ranged: true,
-      body: world.createDynamicCircle(x, y, R.radius),
-      position: { x, y },
-      velocity: { x: 0, y: 0 },
-      health: { hp: R.hp, max: R.hp, iframeTicks: R.invulnTicks },
-      radius: R.radius,
-      staggerTicks: R.staggerTicks,
-      ai: newAiMemory(),
-    }),
-  );
 }
 
 const ZERO: Vec2 = { x: 0, y: 0 };
@@ -88,10 +82,10 @@ export function steer(
     const dx = e.position.x - o.position.x;
     const dy = e.position.y - o.position.y;
     const d = Math.hypot(dx, dy);
-    if (d >= D.separationRadius) continue;
+    if (d >= SEPARATION.radius) continue;
     // Exactly overlapping enemies are split along an id-dependent axis so it stays deterministic.
     const away = d > 0 ? { x: dx / d, y: dy / d } : { x: e.id < o.id ? -1 : 1, y: 0 };
-    const w = (1 - d / D.separationRadius) * D.separationWeight;
+    const w = (1 - d / SEPARATION.radius) * SEPARATION.weight;
     x += away.x * w;
     y += away.y * w;
   }

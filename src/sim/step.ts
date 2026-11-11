@@ -1,5 +1,5 @@
-import type { AiState } from "./ai/chaser";
-import { aiSystem, spawnChaser, spawnRanged } from "./ai/system";
+import type { AiState } from "./ai/memory";
+import { aiSystem, spawnEnemy } from "./ai/system";
 import {
   type AttackPhase,
   attackPhaseAt,
@@ -171,8 +171,7 @@ export function createSimState(world: PhysicsWorld, seed: number, room: Room): S
     });
   }
   for (const e of room.enemies) {
-    if (e.type === "chaser") spawnChaser(ecs, world, e.x, e.y);
-    else if (e.type === "ranged") spawnRanged(ecs, world, e.x, e.y);
+    if (e.type === "chaser" || e.type === "ranged") spawnEnemy(ecs, world, e.type, e.x, e.y);
   }
   createProjectilePool(ecs, world);
   syncSystem(ecs, world);

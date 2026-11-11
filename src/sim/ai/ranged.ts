@@ -1,5 +1,5 @@
 import type { RangedData } from "../../../data/schemas/enemies";
-import { type AiMemory, type AiSense, enter } from "./chaser";
+import { type AiMemory, type AiSense, enter } from "./memory";
 
 /**
  * The ranged enemy's state machine as a pure function (same memory and senses as the chaser).
