@@ -1,7 +1,10 @@
-import { loadRoomByName } from "../src/cli/rooms";
+import { loadFloorByName, loadRoomByName } from "../src/cli/rooms";
 
 /** The test arena, loaded from data/rooms/test-arena.tmj, plus the values tests assert against. */
 export const ARENA = loadRoomByName("test-arena");
+/** The floor whose only room is the arena (data/floors/test-arena.json). */
+export const ARENA_FLOOR = loadFloorByName("test-arena");
+export const ARENA_ROOMS = loadRoomByName;
 export const ROOM_WIDTH = ARENA.width;
 export const ROOM_HEIGHT = ARENA.height;
 export const PLAYER_START = ARENA.playerStart;

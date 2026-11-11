@@ -1,6 +1,6 @@
+import type { Floor, RoomSource } from "./floor";
 import type { InputFrame } from "./input-frame";
 import type { PhysicsWorld } from "./physics/physics-world";
-import type { Room } from "./room";
 import { createSimState, hashSimState, type SimState, step } from "./step";
 
 /**
@@ -8,7 +8,7 @@ import { createSimState, hashSimState, type SimState, step } from "./step";
  * physics settings, new systems, room layout). Old replays are then rejected instead of
  * silently diverging.
  */
-export const SIM_VERSION = 6;
+export const SIM_VERSION = 7;
 
 /**
  * Run-length encoded input: `[mask, aim, count]`. Mask bits: up=1 down=2 left=4 right=8
@@ -18,8 +18,10 @@ export type InputRun = readonly [mask: number, aim: number, count: number];
 
 export interface Replay {
   /** Replay file format version. */
-  readonly version: 2;
+  readonly version: 3;
   readonly simVersion: number;
+  /** Id of the floor file in `data/floors/` the run started on (it names the start room). */
+  readonly floor: string;
   readonly seed: number;
   readonly ticks: number;
   readonly inputs: readonly InputRun[];
@@ -82,9 +84,18 @@ export function parseReplay(raw: unknown): Replay {
       "replay format changed: version 1 files are no longer supported (input runs now carry aim); re-record with this build",
     );
   }
-  if (r.version !== 2) throw new ReplayError(`unsupported replay version: ${r.version}`);
+  if (r.version === 2) {
+    throw new ReplayError(
+      "replay format changed: version 2 files are no longer supported (the header now names the floor); re-record with this build",
+    );
+  }
+  if (r.version !== 3) throw new ReplayError(`unsupported replay version: ${r.version}`);
   if (r.simVersion !== SIM_VERSION) {
     throw new ReplayError(`replay is for sim ${r.simVersion}, this build is ${SIM_VERSION}`);
+  }
+  // The floor id becomes a file name, so keep it to a plain slug.
+  if (typeof r.floor !== "string" || !/^[a-z0-9][a-z0-9-]*$/.test(r.floor)) {
+    throw new ReplayError("floor must be a lowercase slug (letters, digits, dashes)");
   }
   if (!isUint(r.seed)) throw new ReplayError("seed must be a non-negative integer");
   if (!isUint(r.ticks)) throw new ReplayError("ticks must be a non-negative integer");
@@ -106,8 +117,9 @@ export function parseReplay(raw: unknown): Replay {
   }
   if (total !== r.ticks) throw new ReplayError(`ticks (${r.ticks}) != input length (${total})`);
   return {
-    version: 2,
+    version: 3,
     simVersion: r.simVersion,
+    floor: r.floor,
     seed: r.seed,
     ticks: r.ticks,
     inputs: runs,
@@ -116,13 +128,15 @@ export function parseReplay(raw: unknown): Replay {
 }
 
 export function buildReplay(
+  floor: string,
   seed: number,
   frames: readonly InputFrame[],
   finalState: SimState,
 ): Replay {
   return {
-    version: 2,
+    version: 3,
     simVersion: SIM_VERSION,
+    floor,
     seed,
     ticks: frames.length,
     inputs: encodeInputs(frames),
@@ -131,11 +145,23 @@ export function buildReplay(
 }
 
 /**
- * Re-simulate a replay on a fresh, empty physics world and return the final state.
+ * Re-simulate a replay on a fresh, empty physics world and return the final state. The floor
+ * must be the one the replay names; rooms come from `rooms`.
  * Throws `ReplayError` if the final hash differs from the recorded one.
  */
-export function runReplay(replay: Replay, world: PhysicsWorld, room: Room): SimState {
-  let state = createSimState(world, replay.seed, room);
+export function runReplay(
+  replay: Replay,
+  world: PhysicsWorld,
+  floor: Floor,
+  rooms: RoomSource,
+): SimState {
+  if (floor.id !== replay.floor) {
+    throw new ReplayError(`replay is for floor "${replay.floor}", got "${floor.id}"`);
+  }
+  let state = createSimState(world, replay.seed, rooms(floor.start), {
+    roomId: floor.start,
+    rooms,
+  });
   for (const frame of decodeInputs(replay.inputs)) state = step(state, frame);
   const hash = hashSimState(state);
   if (hash !== replay.finalHash) {

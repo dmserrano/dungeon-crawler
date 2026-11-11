@@ -10,13 +10,13 @@ export interface Recorder {
   readonly length: number;
 }
 
-export function createRecorder(): Recorder {
+export function createRecorder(floor: string): Recorder {
   const frames: InputFrame[] = [];
   return {
     record: (f) => {
       frames.push({ ...f });
     },
-    build: (finalState) => buildReplay(finalState.seed, frames, finalState),
+    build: (finalState) => buildReplay(floor, finalState.seed, frames, finalState),
     get length() {
       return frames.length;
     },

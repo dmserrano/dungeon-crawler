@@ -1,6 +1,7 @@
 {
-  "version": 2,
-  "simVersion": 6,
+  "version": 3,
+  "simVersion": 7,
+  "floor": "test-arena",
   "seed": 7,
   "ticks": 589,
   "inputs": [
@@ -105,5 +106,5 @@
     [1, 193, 17],
     [16, 193, 5]
   ],
-  "finalHash": "f2fca15a"
+  "finalHash": "a93925fb"
 }

@@ -7,7 +7,7 @@ import { NO_INPUT } from "../src/sim/input-frame";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
 import { decodeInputs, parseReplay, type Replay, runReplay } from "../src/sim/replay";
 import { createSimState, entityViews, hashSimState, step, TICK_DT } from "../src/sim/step";
-import { ARENA } from "./arena";
+import { ARENA, ARENA_FLOOR, ARENA_ROOMS } from "./arena";
 
 // Acceptance replays for the whole combat loop. If gameplay changes break them, re-record with
 // scripts/record-combat-replays.ts (and bump SIM_VERSION when behavior changed).
@@ -21,9 +21,9 @@ describe("combat scenario replays", () => {
 
   it("clears the test room: both chasers, the shooter and the dummy die, the player lives", () => {
     const replay = load("replay.combat-room-clear.json");
-    expect(replay.finalHash).toBe("f2fca15a");
-    const final = runReplay(replay, createRapierWorld(), ARENA);
-    expect(hashSimState(final)).toBe("f2fca15a");
+    expect(replay.finalHash).toBe("a93925fb");
+    const final = runReplay(replay, createRapierWorld(), ARENA_FLOOR, ARENA_ROOMS);
+    expect(hashSimState(final)).toBe("a93925fb");
     expect(final.cleared).toBe(true);
     expect(final.player.dead).toBe(false);
     expect(entityViews(final).filter((v) => !v.projectile)).toHaveLength(0);
@@ -49,9 +49,9 @@ describe("combat scenario replays", () => {
 
   it("ends in player death, which stops the sim and never reports a clear", () => {
     const replay = load("replay.combat-player-death.json");
-    expect(replay.finalHash).toBe("86701bff");
-    const final = runReplay(replay, createRapierWorld(), ARENA);
-    expect(hashSimState(final)).toBe("86701bff");
+    expect(replay.finalHash).toBe("821ff267");
+    const final = runReplay(replay, createRapierWorld(), ARENA_FLOOR, ARENA_ROOMS);
+    expect(hashSimState(final)).toBe("821ff267");
     expect(final.player.dead).toBe(true);
     expect(final.player.hp).toBe(0);
     expect(final.cleared).toBe(false);
@@ -61,7 +61,7 @@ describe("combat scenario replays", () => {
 
 describe("pause and single-step", () => {
   const setup = () => {
-    const recorder = createRecorder();
+    const recorder = createRecorder(ARENA_FLOOR.id);
     let ticks = 0;
     const loop = createFixedLoop(() => {
       ticks++;
@@ -107,7 +107,7 @@ describe("pause and single-step", () => {
   });
 
   it("a paused-and-stepped session exports a replay that verifies", () => {
-    const recorder = createRecorder();
+    const recorder = createRecorder(ARENA_FLOOR.id);
     let s = createSimState(createRapierWorld(), 5, ARENA);
     const loop = createFixedLoop(() => {
       recorder.record(NO_INPUT);
@@ -123,7 +123,12 @@ describe("pause and single-step", () => {
     expect(replay.ticks).toBe(6);
     expect(
       hashSimState(
-        runReplay(parseReplay(JSON.parse(JSON.stringify(replay))), createRapierWorld(), ARENA),
+        runReplay(
+          parseReplay(JSON.parse(JSON.stringify(replay))),
+          createRapierWorld(),
+          ARENA_FLOOR,
+          ARENA_ROOMS,
+        ),
       ),
     ).toBe(replay.finalHash);
   });

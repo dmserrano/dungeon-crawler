@@ -9,7 +9,7 @@ import { type InputFrame, NO_INPUT, quantizeAim } from "../src/sim/input-frame";
 import { createRapierWorld, initPhysics } from "../src/sim/physics/rapier-world";
 import { buildReplay, parseReplay, runReplay } from "../src/sim/replay";
 import { createSimState, hashSimState, type SimState, step } from "../src/sim/step";
-import { ARENA, DUMMY_START } from "./arena";
+import { ARENA, ARENA_FLOOR, ARENA_ROOMS, DUMMY_START } from "./arena";
 
 const A = PLAYER_DATA.attack;
 const SEED = 7;
@@ -185,11 +185,12 @@ describe("scenario replays", () => {
     expect(t.s.world.bodyCount()).toBe(7 + RANGED_DATA.projectile.poolSize + 1); // + ranged + pool
     expect(t.s.player.dead).toBe(false);
 
-    const replay = buildReplay(SEED, t.log, t.s);
+    const replay = buildReplay(ARENA_FLOOR.id, SEED, t.log, t.s);
     const again = runReplay(
       parseReplay(JSON.parse(JSON.stringify(replay))),
       createRapierWorld(),
-      ARENA,
+      ARENA_FLOOR,
+      ARENA_ROOMS,
     );
     expect(hashSimState(again)).toBe(hashSimState(t.s));
     expect(hashSimState(t.s)).toBe(DUMMY_KILL_HASH);
@@ -275,4 +276,4 @@ describe("combat data", () => {
   });
 });
 
-const DUMMY_KILL_HASH = "67615068";
+const DUMMY_KILL_HASH = "41731390";

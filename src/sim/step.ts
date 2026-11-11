@@ -1,5 +1,5 @@
 import type { AiState } from "./ai/memory";
-import { aiSystem, spawnEnemy } from "./ai/system";
+import { aiSystem } from "./ai/system";
 import {
   type AttackPhase,
   attackPhaseAt,
@@ -10,7 +10,6 @@ import {
   releaseSystem,
   type SimEvent,
 } from "./combat";
-import { DUMMY_DATA } from "./data/dummy";
 import { PLAYER_DATA } from "./data/player";
 import {
   addComponent,
@@ -22,12 +21,26 @@ import {
   query,
   removeComponent,
 } from "./ecs/world";
+import type { RoomSource } from "./floor";
 import { aimToDir, type InputFrame } from "./input-frame";
 import { buildNavGrid, type NavGrid } from "./pathfinding";
 import type { BodyId, PhysicsWorld } from "./physics/physics-world";
 import { createProjectilePool, projectileSystem } from "./projectile";
 import { createRng, type Rng } from "./rng/rng";
 import type { Room } from "./room";
+import {
+  arrivalPoint,
+  createWalls,
+  haltPlayer,
+  lockDoors,
+  spawnRoomEntities,
+  TRANSITION_MIDPOINT,
+  TRANSITION_TICKS,
+  type Transition,
+  teardownRoom,
+  touchedDoor,
+  unlockDoors,
+} from "./run";
 import { hashState } from "./state/hash";
 
 export const TICK_RATE = 60;
@@ -58,13 +71,26 @@ export interface SimState {
   readonly rng: Rng;
   readonly world: PhysicsWorld;
   readonly ecs: EcsWorld;
-  /** Wall grid for enemy pathfinding (static for the room). */
+  /** Wall grid for enemy pathfinding (static for the active room). */
   readonly nav: NavGrid;
+  /** Run record: id and data of the active room, and the ids of rooms cleared so far (sorted). */
+  readonly roomId: string;
+  readonly room: Room;
+  readonly clearedRooms: readonly string[];
+  /** Looks up the room a door leads to. */
+  readonly rooms: RoomSource;
+  /** Door transition in progress (input ignored), or null. */
+  readonly transition: Transition | null;
+  /** True while the active room's doors are locked shut (live enemies, not yet cleared). */
+  readonly locked: boolean;
+  /** Static bodies of the active room: walls, and door locks while locked. */
+  readonly wallBodies: readonly BodyId[];
+  readonly lockBodies: readonly BodyId[];
   readonly playerId: BodyId;
   readonly player: PlayerSnapshot;
   /** Event queue: damage is consumed within the tick; death notices last until the next tick. */
   readonly events: SimEvent[];
-  /** True once every enemy is dead ("room cleared"). Not part of the state hash. */
+  /** True once every enemy of the active room is dead ("room cleared"). */
   readonly cleared: boolean;
 }
 
@@ -143,9 +169,25 @@ function syncSystem(ecs: EcsWorld, world: PhysicsWorld): void {
   }
 }
 
+export interface SimOptions {
+  /**
+   * Id of `room` in the floor. The default is the id of the one standalone room tests and tools
+   * use (`test-arena`), so a bare `createSimState(world, seed, arena)` hashes like a replay run.
+   */
+  roomId?: string;
+  /** Resolves door targets; the default knows only `room`. */
+  rooms?: RoomSource;
+}
+
 /** Build the initial state. `world` must be a fresh, empty physics world. */
-export function createSimState(world: PhysicsWorld, seed: number, room: Room): SimState {
-  for (const w of room.walls) world.createStaticBox(w.x, w.y, w.hw, w.hh);
+export function createSimState(
+  world: PhysicsWorld,
+  seed: number,
+  room: Room,
+  opts: SimOptions = {},
+): SimState {
+  const roomId = opts.roomId ?? "test-arena";
+  const wallBodies = createWalls(world, room);
   const playerId = world.createDynamicCircle(
     room.playerStart.x,
     room.playerStart.y,
@@ -161,23 +203,27 @@ export function createSimState(world: PhysicsWorld, seed: number, room: Room): S
     health: { hp: PLAYER_DATA.hp, max: PLAYER_DATA.hp, iframeTicks: PLAYER_DATA.invulnTicks },
     radius: PLAYER_DATA.radius,
   });
-  // Training dummy: solid, never moves, takes damage and dies.
-  if (room.dummy) {
-    createEntity(ecs, {
-      dummy: true,
-      body: world.createStaticCircle(room.dummy.x, room.dummy.y, DUMMY_DATA.radius),
-      health: { hp: DUMMY_DATA.hp, max: DUMMY_DATA.hp, iframeTicks: DUMMY_DATA.invulnTicks },
-      radius: DUMMY_DATA.radius,
-    });
-  }
-  for (const e of room.enemies) {
-    if (e.type === "chaser" || e.type === "ranged") spawnEnemy(ecs, world, e.type, e.x, e.y);
-  }
+  // Entering a room with live enemies locks its doors (a room with none never locks).
+  const hostile = spawnRoomEntities(ecs, world, room);
+  const lockBodies = hostile ? lockDoors(world, room) : [];
   createProjectilePool(ecs, world);
   syncSystem(ecs, world);
   return {
     events: [],
     cleared: false,
+    roomId,
+    room,
+    clearedRooms: [],
+    rooms:
+      opts.rooms ??
+      ((id) => {
+        if (id === roomId) return room;
+        throw new Error(`unknown room "${id}"`);
+      }),
+    transition: null,
+    locked: hostile,
+    wallBodies,
+    lockBodies,
     tick: 0,
     seed,
     rng: createRng(seed),
@@ -269,6 +315,7 @@ export function step(state: SimState, input: InputFrame): SimState {
     const kind = events[i]?.kind;
     if (kind === "death" || kind === "cleared") events.splice(i, 1);
   }
+  if (state.transition) return stepTransition(state, state.transition);
   inputSystem(ecs, input);
   releaseSystem(ecs, world);
   movementSystem(ecs, world);
@@ -282,8 +329,77 @@ export function step(state: SimState, input: InputFrame): SimState {
   world.drainCollisionEvents(); // nothing consumes events yet; keep the queue empty
   syncSystem(ecs, world);
   const cleared = state.cleared || noEnemiesLeft(ecs);
-  if (cleared && !state.cleared) events.push({ kind: "cleared" });
-  return { ...state, cleared, tick: state.tick + 1, player: snapshotOf(playerEntity(ecs)) };
+  let { locked, lockBodies, clearedRooms } = state;
+  if (cleared && !state.cleared) {
+    events.push({ kind: "cleared" });
+    clearedRooms = [...clearedRooms, state.roomId].sort();
+    unlockDoors(world, lockBodies);
+    locked = false;
+    lockBodies = [];
+  }
+  const me = playerEntity(ecs);
+  let transition: Transition | null = null;
+  if (!locked && (me.health?.hp ?? 0) > 0) {
+    const door = touchedDoor(state.room, me.position ?? { x: 0, y: 0 }, PLAYER_DATA.radius);
+    if (door) {
+      transition = { t: 0, to: door.to, toDoor: door.toDoor };
+      haltPlayer(ecs, world);
+    }
+  }
+  return {
+    ...state,
+    cleared,
+    locked,
+    lockBodies,
+    clearedRooms,
+    transition,
+    tick: state.tick + 1,
+    player: snapshotOf(me),
+  };
+}
+
+/**
+ * One tick of a door transition: input is ignored and nothing else runs. At the midpoint the old
+ * room is torn down and the new one built with the player at the paired door; when it ends the
+ * enemies spawn (unless the room is already cleared) and the doors lock if any are alive.
+ */
+function stepTransition(state: SimState, tr: Transition): SimState {
+  const { world, ecs, events } = state;
+  for (let i = events.length - 1; i >= 0; i--) {
+    const kind = events[i]?.kind;
+    if (kind === "death" || kind === "cleared") events.splice(i, 1);
+  }
+  const t = tr.t + 1;
+  const done = t >= TRANSITION_TICKS;
+  let next: SimState = { ...state, tick: state.tick + 1, transition: done ? null : { ...tr, t } };
+  if (t === TRANSITION_MIDPOINT) {
+    teardownRoom(ecs, world, [...state.wallBodies, ...state.lockBodies]);
+    const room = state.rooms(tr.to);
+    const door = room.doors.find((d) => d.name === tr.toDoor);
+    if (!door) throw new Error(`room "${tr.to}" has no door "${tr.toDoor}"`);
+    const at = arrivalPoint(room, door);
+    world.setPosition(state.playerId, at.x, at.y);
+    world.setVelocity(state.playerId, 0, 0);
+    next = {
+      ...next,
+      roomId: tr.to,
+      room,
+      nav: buildNavGrid(room),
+      wallBodies: createWalls(world, room),
+      lockBodies: [],
+      locked: false,
+      cleared: false,
+    };
+  }
+  if (done) {
+    if (next.clearedRooms.includes(next.roomId)) {
+      next = { ...next, cleared: true };
+    } else if (spawnRoomEntities(ecs, world, next.room)) {
+      next = { ...next, locked: true, lockBodies: lockDoors(world, next.room) };
+    }
+  }
+  syncSystem(ecs, world);
+  return { ...next, player: snapshotOf(playerEntity(ecs)) };
 }
 
 /**
@@ -308,6 +424,12 @@ export function stateSnapshot(state: SimState) {
     tick: state.tick,
     seed: state.seed,
     rng: state.rng.state,
+    run: {
+      room: state.roomId,
+      cleared: state.clearedRooms,
+      locked: state.locked,
+      transition: state.transition,
+    },
     player: state.player,
     ...(others.length > 0 ? { entities: others } : {}),
   };

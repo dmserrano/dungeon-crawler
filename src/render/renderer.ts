@@ -82,7 +82,11 @@ export interface Renderer {
     alpha: number,
     others: EntityView[],
     slash: SlashView | null,
+    /** Black overlay opacity 0-1 (door transitions). */
+    fade: number,
   ): void;
+  /** Swap the drawn tiles and canvas size after a room transition. */
+  setRoom(room: Room, map: RoomMap): void;
   setDebug(on: boolean): void;
   setStats(text: string): void;
   /** Convert client (page) coordinates to room coordinates. */
@@ -120,28 +124,34 @@ export async function createRenderer(
   };
   // Tile layers are drawn as-is (render only); the sim builds walls from the "walls" layer data.
   const tiles = new Container();
-  const marginTiles = map.properties.find((p) => p.name === "margin")?.value;
-  const offset = typeof marginTiles === "number" ? marginTiles : 0;
-  for (const layer of map.layers) {
-    if (layer.type !== "tilelayer") continue;
-    layer.data.forEach((gid, i) => {
-      const id = gid & GID_MASK;
-      if (id === 0) return;
-      const s = new Sprite(art.tile(id - 1));
-      s.position.set(
-        ((i % layer.width) - offset) * map.tilewidth,
-        (Math.floor(i / layer.width) - offset) * map.tileheight,
-      );
-      tiles.addChild(s);
-    });
-  }
+  const buildTiles = (m: RoomMap): void => {
+    for (const old of tiles.removeChildren()) old.destroy();
+    const marginTiles = m.properties.find((p) => p.name === "margin")?.value;
+    const offset = typeof marginTiles === "number" ? marginTiles : 0;
+    for (const layer of m.layers) {
+      if (layer.type !== "tilelayer") continue;
+      layer.data.forEach((gid, i) => {
+        const id = gid & GID_MASK;
+        if (id === 0) return;
+        const s = new Sprite(art.tile(id - 1));
+        s.position.set(
+          ((i % layer.width) - offset) * m.tilewidth,
+          (Math.floor(i / layer.width) - offset) * m.tileheight,
+        );
+        tiles.addChild(s);
+      });
+    }
+  };
+  buildTiles(map);
+  const fadeOverlay = new Graphics();
   const player = sprite(art.manifest.sprites.player);
   const slashFx = new Graphics();
   const debug = new Graphics();
   debug.visible = false;
   const entities = new Container();
   const sprites = new Map<number, Sprite>();
-  stage.addChild(tiles, entities, player, slashFx, debug);
+  stage.addChild(tiles, entities, player, slashFx, debug, fadeOverlay);
+  let size = { w: room.width, h: room.height };
 
   const stats = new Text({
     text: "",
@@ -156,7 +166,18 @@ export async function createRenderer(
     get debugOn() {
       return debugOn;
     },
-    draw(prev, cur, alpha, others, slash) {
+    setRoom(next, nextMap) {
+      buildTiles(nextMap);
+      size = { w: next.width, h: next.height };
+      app.renderer.resize((next.width + margin * 2) * SCALE, (next.height + margin * 2) * SCALE);
+    },
+    draw(prev, cur, alpha, others, slash, fade) {
+      fadeOverlay.clear();
+      if (fade > 0) {
+        fadeOverlay
+          .rect(-margin, -margin, size.w + margin * 2, size.h + margin * 2)
+          .fill({ color: 0x000000, alpha: fade });
+      }
       player.position.set(prev.x + (cur.x - prev.x) * alpha, prev.y + (cur.y - prev.y) * alpha);
       slashFx.position.copyFrom(player.position);
       drawSlash(slashFx, slash);

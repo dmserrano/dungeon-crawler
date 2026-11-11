@@ -8,7 +8,7 @@ const fx = (n: string) => join(__dirname, "fixtures", n);
 describe("verifyReplayFile", () => {
   it("verifies a valid replay", async () => {
     const r = await verifyReplayFile(fx("replay.valid.json"));
-    expect(r).toEqual({ ok: true, ticks: 270, expectedHash: "290f1edc", actualHash: "290f1edc" });
+    expect(r).toEqual({ ok: true, ticks: 270, expectedHash: "1523ceb4", actualHash: "1523ceb4" });
   });
 
   it("reports a hash mismatch with both hashes", async () => {
@@ -16,7 +16,7 @@ describe("verifyReplayFile", () => {
     expect(r.ok).toBe(false);
     expect(r.reason).toMatch(/final hash mismatch/);
     expect(r.expectedHash).toBe("deadbeef");
-    expect(r.actualHash).toBe("290f1edc");
+    expect(r.actualHash).toBe("1523ceb4");
   });
 
   it("rejects a version 1 replay saying the format changed", async () => {
@@ -58,7 +58,7 @@ describe("pnpm replay (end to end)", () => {
     const p = run(fx("replay.valid.json"));
     expect(p.status).toBe(0);
     expect(p.stdout).toContain("ticks=270");
-    expect(p.stdout).toContain("hash=290f1edc");
+    expect(p.stdout).toContain("hash=1523ceb4");
   }, 30_000); // spawns pnpm + tsx; slow while coverage runs every test file in parallel
 
   it("exits non-zero with --json on mismatch", () => {

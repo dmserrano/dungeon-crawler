@@ -18,7 +18,7 @@ import {
 } from "../src/sim/projectile";
 import { buildReplay, parseReplay, runReplay } from "../src/sim/replay";
 import { createSimState, entityViews, hashSimState, type SimState, step } from "../src/sim/step";
-import { ARENA, RANGED_START } from "./arena";
+import { ARENA, ARENA_FLOOR, ARENA_ROOMS, RANGED_START } from "./arena";
 
 const R = RANGED_DATA;
 const P = R.projectile;
@@ -245,11 +245,12 @@ function session() {
 type Session = ReturnType<typeof session>;
 
 function expectReplay(t: Session, hash: string) {
-  const replay = buildReplay(SEED, t.log, t.s);
+  const replay = buildReplay(ARENA_FLOOR.id, SEED, t.log, t.s);
   const again = runReplay(
     parseReplay(JSON.parse(JSON.stringify(replay))),
     createRapierWorld(),
-    ARENA,
+    ARENA_FLOOR,
+    ARENA_ROOMS,
   );
   expect(hashSimState(again)).toBe(hashSimState(t.s));
   expect(hashSimState(t.s)).toBe(hash);
@@ -386,6 +387,6 @@ describe("ranged scenarios", () => {
   });
 });
 
-const HIT_HASH = "1bcdcbe6";
-const DASH_HASH = "a6d3df78";
-const WALL_HASH = "206cf323";
+const HIT_HASH = "91cbc37e";
+const DASH_HASH = "1714133a";
+const WALL_HASH = "766df09d";
