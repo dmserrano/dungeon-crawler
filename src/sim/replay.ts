@@ -8,7 +8,7 @@ import { createSimState, hashSimState, type SimState, step } from "./step";
  * physics settings, new systems, room layout). Old replays are then rejected instead of
  * silently diverging.
  */
-export const SIM_VERSION = 5;
+export const SIM_VERSION = 6;
 
 /**
  * Run-length encoded input: `[mask, aim, count]`. Mask bits: up=1 down=2 left=4 right=8

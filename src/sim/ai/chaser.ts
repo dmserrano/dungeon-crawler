@@ -1,55 +1,5 @@
 import type { ChaserData } from "../../../data/schemas/enemies";
-
-/**
- * Behavior states of every enemy. Chaser: idle, chase, telegraph, attack, stagger, dead. Ranged:
- * idle, kite, telegraph, fire, stagger, dead. `dead` is terminal (dead enemies are removed within
- * the tick).
- */
-export type AiState =
-  | "idle"
-  | "chase"
-  | "kite"
-  | "telegraph"
-  | "attack"
-  | "fire"
-  | "stagger"
-  | "dead";
-
-/** Everything the state machine remembers between ticks. */
-export interface AiMemory {
-  state: AiState;
-  /** Ticks spent in the current state. */
-  t: number;
-  /** Ticks until the next telegraph is allowed. */
-  cooldown: number;
-  /** Lunge direction (unit), locked when the telegraph starts. */
-  dir: { x: number; y: number };
-  /** True once this lunge has connected (or been spent), so it damages at most once. */
-  spent: boolean;
-}
-
-/** What the enemy perceives this tick. */
-export interface AiSense {
-  /** Centre distance to the player (Infinity when there is no live player). */
-  dist: number;
-  /** Unit vector toward the player (zero when on top of them). */
-  toPlayer: { x: number; y: number };
-  /** Just hit: knockback pending or recovering from it. */
-  staggered: boolean;
-  dead: boolean;
-}
-
-export function newAiMemory(): AiMemory {
-  return { state: "idle", t: 0, cooldown: 0, dir: { x: 0, y: 0 }, spent: false };
-}
-
-export const enter = (m: AiMemory, state: AiState, patch: Partial<AiMemory> = {}): AiMemory => ({
-  ...m,
-  state,
-  t: 0,
-  spent: false,
-  ...patch,
-});
+import { type AiMemory, type AiSense, enter } from "./memory";
 
 /**
  * The chaser state machine as a pure function: no RNG, no world access. A hit interrupts any
