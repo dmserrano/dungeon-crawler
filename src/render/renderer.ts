@@ -1,12 +1,16 @@
-import { Application, Container, Graphics, Text } from "pixi.js";
+import { Application, Container, Graphics, Sprite, Text } from "pixi.js";
+import type { RoomMap } from "../../data/schemas/room";
 import { PLAYER_DATA } from "../sim/data/player";
 import { aimToDir } from "../sim/input-frame";
 import type { PhysicsWorld } from "../sim/physics/physics-world";
 import { PLAYER_RADIUS, type Room, WALL_THICKNESS } from "../sim/room";
 import type { EntityView, PlayerSnapshot } from "../sim/step";
+import { loadArt } from "./art";
 import type { SlashView } from "./slash-tracker";
 
 const SCALE = 3;
+/** Tiled stores flip flags in the top bits of a tile gid. */
+const GID_MASK = 0x0fffffff;
 
 // Slash effect geometry. The hit sensor sits `reach` ahead of the player with radius `hitRadius`,
 // so the arc spans from the player out to the far edge of that sensor.
@@ -90,6 +94,7 @@ export async function createRenderer(
   host: HTMLElement,
   world: PhysicsWorld,
   room: Room,
+  map: RoomMap,
 ): Promise<Renderer> {
   const margin = WALL_THICKNESS;
   const app = new Application();
@@ -107,18 +112,36 @@ export async function createRenderer(
   stage.position.set(margin * SCALE, margin * SCALE);
   app.stage.addChild(stage);
 
-  const floor = new Graphics().rect(0, 0, room.width, room.height).fill(0x2b2838);
-  const walls = new Graphics();
-  for (const w of room.walls) {
-    walls.rect(w.x - w.hw, w.y - w.hh, w.hw * 2, w.hh * 2).fill(0x58506e);
+  const art = await loadArt();
+  const sprite = (tile: number): Sprite => {
+    const s = new Sprite(art.tile(tile));
+    s.anchor.set(0.5);
+    return s;
+  };
+  // Tile layers are drawn as-is (render only); the sim builds walls from the "walls" layer data.
+  const tiles = new Container();
+  const marginTiles = map.properties.find((p) => p.name === "margin")?.value;
+  const offset = typeof marginTiles === "number" ? marginTiles : 0;
+  for (const layer of map.layers) {
+    if (layer.type !== "tilelayer") continue;
+    layer.data.forEach((gid, i) => {
+      const id = gid & GID_MASK;
+      if (id === 0) return;
+      const s = new Sprite(art.tile(id - 1));
+      s.position.set(
+        ((i % layer.width) - offset) * map.tilewidth,
+        (Math.floor(i / layer.width) - offset) * map.tileheight,
+      );
+      tiles.addChild(s);
+    });
   }
-  const player = new Graphics().circle(0, 0, PLAYER_RADIUS).fill(0xe8c547);
+  const player = sprite(art.manifest.sprites.player);
   const slashFx = new Graphics();
   const debug = new Graphics();
   debug.visible = false;
   const entities = new Container();
-  const sprites = new Map<number, Graphics>();
-  stage.addChild(floor, walls, entities, player, slashFx, debug);
+  const sprites = new Map<number, Sprite>();
+  stage.addChild(tiles, entities, player, slashFx, debug);
 
   const stats = new Text({
     text: "",
@@ -143,9 +166,8 @@ export async function createRenderer(
         live.add(o.id);
         let g = sprites.get(o.id);
         if (!g) {
-          g = new Graphics()
-            .circle(0, 0, o.radius)
-            .fill(o.projectile ? 0xff9f43 : o.ranged ? 0x9b59d9 : o.ai ? 0xd94a4a : 0xc9743a);
+          const s = art.manifest.sprites;
+          g = sprite(o.projectile ? s.projectile : o.ranged ? s.ranged : o.ai ? s.chaser : s.dummy);
           sprites.set(o.id, g);
           entities.addChild(g);
         }

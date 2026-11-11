@@ -10,7 +10,7 @@ import {
   describeProjectiles,
 } from "./debug/stats";
 import { createFixedLoop } from "./game/loop";
-import { loadRoom } from "./game/rooms";
+import { loadRoom, loadRoomMap } from "./game/rooms";
 import { seedFromSearch } from "./game/seed";
 import { createKeyboardInput } from "./input/keyboard";
 import { createPointerInput } from "./input/pointer";
@@ -36,7 +36,7 @@ async function main() {
   log.info("session start", { seed });
   let prev = cur;
   const keys = createKeyboardInput(window);
-  const renderer = await createRenderer(host, world, room);
+  const renderer = await createRenderer(host, world, room, loadRoomMap("test-arena"));
   const pointer = createPointerInput(window, renderer.toRoom);
   const fps = createFpsMeter();
   const slash = createSlashTracker();

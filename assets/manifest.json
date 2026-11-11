@@ -1,0 +1,26 @@
+{
+  "tileset": {
+    "image": "tiny-dungeon/Tilemap/tilemap.png",
+    "tileWidth": 16,
+    "tileHeight": 16,
+    "spacing": 1,
+    "columns": 12
+  },
+  "sprites": {
+    "player": 85,
+    "chaser": 110,
+    "ranged": 84,
+    "dummy": 65,
+    "projectile": 103
+  },
+  "files": [
+    "tiny-dungeon/Tilemap/tilemap.png",
+    "tiny-dungeon/Tilemap/tilemap_packed.png",
+    "tiny-dungeon/Tiled/sampleSheet.tsx",
+    "tiny-dungeon/Tiled/sampleMap.tmx",
+    "tiny-dungeon/Preview.png",
+    "tiny-dungeon/Sample.png",
+    "tiny-dungeon/Tilesheet.txt",
+    "tiny-dungeon/License.txt"
+  ]
+}
