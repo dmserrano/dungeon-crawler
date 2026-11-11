@@ -21,3 +21,16 @@ export function describeEnemies(views: readonly { id: number; ai: string | null 
   const enemies = views.filter((v) => v.ai !== null);
   return [`enemies ${enemies.length}`, ...enemies.map((v) => `  #${v.id} ${v.ai}`)].join("\n");
 }
+
+/** Debug overlay lines for the player's combat state, pause and room outcome. */
+export function describeCombat(s: {
+  hp: number;
+  maxHp: number;
+  attack: string | null;
+  dead: boolean;
+  cleared: boolean;
+  paused: boolean;
+}): string {
+  const flags = [s.paused ? "PAUSED" : "", s.cleared ? "ROOM CLEARED" : "", s.dead ? "DEAD" : ""];
+  return `HP ${s.hp}/${s.maxHp}  attack ${s.attack ?? "-"}  ${flags.filter(Boolean).join("  ")}`.trimEnd();
+}
