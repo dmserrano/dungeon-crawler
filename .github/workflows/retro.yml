@@ -24,7 +24,7 @@ jobs:
       actions: read # failed CI runs
       id-token: write # the action exchanges the OIDC token for its app token
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # git log analysis (files that change together)
           persist-credentials: false
@@ -34,7 +34,7 @@ jobs:
         run: |
           gh label create retro --force --color 1d76db \
             --description "Weekly agent retro, proposals to improve the workflow (advisory)"
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # do NOT set allowed_non_write_users
