@@ -16,6 +16,12 @@ jobs:
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    # One run per issue or PR at a time; a second request waits instead of racing the first.
+    # Job level, so comments that do not mention @claude never enter the group. GitHub keeps at
+    # most one waiting run per group: a third request replaces the one still waiting.
+    concurrency:
+      group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -35,10 +41,15 @@ jobs:
       - uses: anthropics/claude-code-action@4fa93a88de49bbef68b10eb15aabedf28ca0e1ed # v1.0.271
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The allowlist is a guardrail, not a sandbox: Bash(pnpm:*) can run arbitrary package
+          # scripts. The real boundaries are the job token permissions above, the main branch
+          # ruleset and the write-access gate on who can trigger this workflow. Do not add
+          # Bash(git:*): it would allow force-push, git config, git remote set-url and bypassing
+          # the action's push wrapper.
           claude_args: |
             --max-turns 100
             --max-budget-usd 3
-            --allowedTools "Bash(pnpm:*)"
+            --allowedTools "Bash(pnpm:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*)"
             --append-system-prompt "Turn budget: update your GitHub comment only twice, once with the plan at the start and once with the final summary. Do not update it after each todo. While iterating run only the affected tests (pnpm test <file>); run pnpm verify once at the end, and pnpm knip and pnpm test:coverage once each. Run each pnpm command on its own, never piped or chained, because piped commands are denied by the allowlist and waste turns. Do not re-read files you already read."
       # The action hides tool calls from the public job log; this prints counts only.
       - name: Summarize Claude tool usage
