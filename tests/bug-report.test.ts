@@ -9,7 +9,7 @@ import { createLogger } from "../src/debug/logger";
 
 const info = {
   repo: "o/r",
-  simVersion: 4,
+  simVersion: 5,
   seed: 42,
   tick: 120,
   hash: "abcd1234",
@@ -22,7 +22,7 @@ describe("buildIssueUrl", () => {
     const u = new URL(buildIssueUrl({ ...info, logLines: ["x & y=z\nnew line", "ü"] }));
     expect(u.origin + u.pathname).toBe("https://github.com/o/r/issues/new");
     expect(u.searchParams.get("template")).toBe("bug-report.yml");
-    expect(u.searchParams.get("version")).toBe("sim 4");
+    expect(u.searchParams.get("version")).toBe("sim 5");
     expect(u.searchParams.get("seed")).toBe("42");
     expect(u.searchParams.get("tick")).toBe("120");
     expect(u.searchParams.get("hash")).toBe("abcd1234");

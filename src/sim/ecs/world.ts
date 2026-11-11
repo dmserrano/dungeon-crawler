@@ -39,6 +39,13 @@ export interface Entity {
   enemy?: true;
   /** Enemy state machine memory. */
   ai?: AiMemory;
+  /** Marks a ranged enemy (shoots projectiles). */
+  ranged?: true;
+  /**
+   * A pooled projectile. The entity and its sensor body live for the whole run; an inactive one
+   * is parked off-room and ignored by every system and by the state hash.
+   */
+  projectile?: { active: boolean; t: number };
   /** Ticks of stagger after hitstop; the player falls back to its attack data. */
   staggerTicks?: number;
 }

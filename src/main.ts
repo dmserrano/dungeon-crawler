@@ -3,7 +3,7 @@ import { downloadText } from "./debug/download";
 import { installErrorCapture } from "./debug/error-capture";
 import { createLogger } from "./debug/logger";
 import { createRecorder } from "./debug/recorder";
-import { createFpsMeter, describeEnemies } from "./debug/stats";
+import { createFpsMeter, describeEnemies, describeProjectiles } from "./debug/stats";
 import { createFixedLoop } from "./game/loop";
 import { seedFromSearch } from "./game/seed";
 import { createKeyboardInput } from "./input/keyboard";
@@ -104,6 +104,7 @@ async function main() {
       renderer.setStats(
         `FPS ${rate.toFixed(0)}  entities ${world.bodyCount()}  tick ${cur.tick}\n` +
           `HP ${p.hp}/${p.maxHp}  attack ${p.attack ?? "-"}${p.dead ? "  DEAD" : ""}\n` +
+          `${describeProjectiles(entityViews(cur))}\n` +
           describeEnemies(entityViews(cur)),
       );
     }

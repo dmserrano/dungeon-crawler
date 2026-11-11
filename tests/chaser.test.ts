@@ -4,7 +4,7 @@ import { enemiesDataSchema } from "../data/schemas/enemies";
 import { describeEnemies } from "../src/debug/stats";
 import { type AiMemory, type AiSense, newAiMemory, nextAiState } from "../src/sim/ai/chaser";
 import { spawnChaser, steer } from "../src/sim/ai/system";
-import { CHASER_DATA, parseEnemiesData } from "../src/sim/data/enemies";
+import { CHASER_DATA, parseEnemiesData, RANGED_DATA } from "../src/sim/data/enemies";
 import { PLAYER_DATA } from "../src/sim/data/player";
 import { entitiesById } from "../src/sim/ecs/world";
 import { type InputFrame, NO_INPUT, quantizeAim } from "../src/sim/input-frame";
@@ -220,7 +220,7 @@ function session() {
   const states: Record<number, string[]> = {};
   /** Player HP after each tick. */
   const hp: number[] = [];
-  const chasers = () => entityViews(s).filter((v) => v.ai !== null);
+  const chasers = () => entityViews(s).filter((v) => v.ai !== null && !v.ranged);
   return {
     get s() {
       return s;
@@ -272,11 +272,12 @@ describe("chaser scenarios", () => {
   it("spawns two chasers at the fixed positions next to the training dummy", () => {
     const s = createSimState(createRapierWorld(), SEED);
     const views = entityViews(s);
-    expect(views.filter((v) => v.ai === "idle").map((v) => [v.x, v.y])).toEqual(
+    expect(views.filter((v) => v.ai === "idle" && !v.ranged).map((v) => [v.x, v.y])).toEqual(
       CHASER_STARTS.map((c) => [c.x, c.y]),
     );
     expect(entitiesById(s.ecs).some((e) => e.dummy)).toBe(true);
-    expect(views).toHaveLength(3);
+    expect(views.filter((v) => v.ranged)).toHaveLength(1);
+    expect(views).toHaveLength(4); // dummy, 2 chasers, ranged (no projectile in flight)
   });
 
   it("stay idle while the player is far away", () => {
@@ -365,12 +366,13 @@ describe("chaser scenarios", () => {
     expect(t.s.player.dead).toBe(false);
     expect(t.chasers()).toHaveLength(1);
     expect(sawStagger).toBe(true);
-    expect(t.s.world.bodyCount()).toBe(7); // 4 walls + player + dummy + the surviving chaser
+    expect(t.s.world.bodyCount()).toBe(8 + POOL); // walls, player, dummy, chaser, ranged, pool
     expectReplay(t, KILL_HASH);
   });
 });
 
+const POOL = RANGED_DATA.projectile.poolSize;
 const DASH_TICKS = PLAYER_DATA.dash.ticks;
-const CONTACT_HASH = "983b8ece";
-const DASH_HASH = "94e4026e";
-const KILL_HASH = "bed0c713";
+const CONTACT_HASH = "1305e3d1";
+const DASH_HASH = "4b126430";
+const KILL_HASH = "b67b8bc9";

@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import playerJson from "../data/player.json";
 import { ATTACK_TOTAL_TICKS, attackPhaseAt, queueDamage } from "../src/sim/combat";
 import { DUMMY_DATA, parseDummyData } from "../src/sim/data/dummy";
+import { RANGED_DATA } from "../src/sim/data/enemies";
 import { PLAYER_DATA, parsePlayerData } from "../src/sim/data/player";
 import { createEntity, entitiesById, query } from "../src/sim/ecs/world";
 import { type InputFrame, NO_INPUT, quantizeAim } from "../src/sim/input-frame";
@@ -181,7 +182,7 @@ describe("scenario replays", () => {
       if (hit < DUMMY_DATA.hp) expect(t.dummy()?.health?.hp).toBe(DUMMY_DATA.hp - hit);
     }
     expect(t.dummy()).toBeUndefined();
-    expect(t.s.world.bodyCount()).toBe(7); // 4 walls + player + 2 idle chasers
+    expect(t.s.world.bodyCount()).toBe(7 + RANGED_DATA.projectile.poolSize + 1); // + ranged + pool
     expect(t.s.player.dead).toBe(false);
 
     const replay = buildReplay(SEED, t.log, t.s);
@@ -270,4 +271,4 @@ describe("combat data", () => {
   });
 });
 
-const DUMMY_KILL_HASH = "478e7351";
+const DUMMY_KILL_HASH = "67615068";

@@ -1,7 +1,19 @@
 import type { ChaserData } from "../../../data/schemas/enemies";
 
-/** Chaser behavior states. `dead` is terminal (dead enemies are removed within the tick). */
-export type AiState = "idle" | "chase" | "telegraph" | "attack" | "stagger" | "dead";
+/**
+ * Behavior states of every enemy. Chaser: idle, chase, telegraph, attack, stagger, dead. Ranged:
+ * idle, kite, telegraph, fire, stagger, dead. `dead` is terminal (dead enemies are removed within
+ * the tick).
+ */
+export type AiState =
+  | "idle"
+  | "chase"
+  | "kite"
+  | "telegraph"
+  | "attack"
+  | "fire"
+  | "stagger"
+  | "dead";
 
 /** Everything the state machine remembers between ticks. */
 export interface AiMemory {
@@ -31,7 +43,7 @@ export function newAiMemory(): AiMemory {
   return { state: "idle", t: 0, cooldown: 0, dir: { x: 0, y: 0 }, spent: false };
 }
 
-const enter = (m: AiMemory, state: AiState, patch: Partial<AiMemory> = {}): AiMemory => ({
+export const enter = (m: AiMemory, state: AiState, patch: Partial<AiMemory> = {}): AiMemory => ({
   ...m,
   state,
   t: 0,
@@ -69,5 +81,8 @@ export function nextAiState(m: AiMemory, s: AiSense, data: ChaserData): AiMemory
       return m.t + 1 >= data.lunge.ticks
         ? enter(m, "chase", { cooldown: data.cooldownTicks })
         : { ...m, t: m.t + 1 };
+    case "kite":
+    case "fire":
+      return m; // ranged-only states; see ranged.ts
   }
 }

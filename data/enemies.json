@@ -16,5 +16,26 @@
     "staggerTicks": 24,
     "separationRadius": 24,
     "separationWeight": 0.8
+  },
+  "ranged": {
+    "radius": 6,
+    "hp": 2,
+    "invulnTicks": 20,
+    "speed": 40,
+    "damping": 0.82,
+    "aggroRange": 150,
+    "keepDistance": { "min": 70, "max": 110 },
+    "telegraphTicks": 12,
+    "fireIntervalTicks": 90,
+    "staggerTicks": 24,
+    "projectile": {
+      "speed": 120,
+      "lifetimeTicks": 180,
+      "radius": 3,
+      "damage": 1,
+      "knockbackSpeed": 120,
+      "hitstopTicks": 4,
+      "poolSize": 16
+    }
   }
 }
